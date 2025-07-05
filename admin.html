@@ -41,7 +41,7 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="totalTransactions">-</div>
-                    <div class="stat-label">Transaksi</div>
+                    <div class="stat-label">Total Transaksi</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number" id="revenue">-</div>
@@ -49,22 +49,27 @@
                 </div>
             </div>
 
-            <!-- Category Tabs -->
+            <!-- Category Tabs - UPDATED WITH TRANSACTION TAB -->
             <div class="nav-tabs" id="categoryTabs">
-                <!-- Categories will be loaded dynamically -->
+                <button class="nav-tab active" data-category="official" onclick="admin.switchCategory('official')">Official XL / AXIS</button>
+                <button class="nav-tab" data-category="circle" onclick="admin.switchCategory('circle')">XL Circle</button>
+                <button class="nav-tab" data-category="harian" onclick="admin.switchCategory('harian')">Paket Harian</button>
+                <button class="nav-tab" data-category="perpanjangan" onclick="admin.switchCategory('perpanjangan')">Perpanjangan</button>
+                <!-- NEW: Transaction History Tab -->
+                <button class="nav-tab transaction-tab" onclick="admin.showTransactions()">📊 Transaksi</button>
             </div>
 
             <!-- Content Panel -->
             <div class="content-panel">
                 <div class="panel-header">
                     <h2 class="panel-title" id="categoryTitle">Loading...</h2>
-                    <button class="btn btn-primary" onclick="openAddModal()">
+                    <button class="btn btn-primary" id="addPackageBtn" onclick="openAddModal()">
                         ➕ Tambah Paket Baru
                     </button>
                 </div>
 
                 <!-- Search & Filter -->
-                <div class="search-box">
+                <div class="search-box" id="searchBox">
                     <input type="text" class="search-input" placeholder="Cari paket..." id="searchInput">
                     <select class="form-select" id="statusFilter">
                         <option value="">Semua Status</option>
@@ -73,7 +78,7 @@
                     </select>
                 </div>
 
-                <!-- Package Table -->
+                <!-- Package/Transaction Table Container -->
                 <div id="packageTableContainer">
                     <table class="data-table" id="packageTable">
                         <thead>
@@ -157,6 +162,19 @@
                     <button type="submit" class="btn btn-primary">Simpan</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Transaction Detail Modal (NEW) -->
+    <div id="transactionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title">📊 Detail Transaksi</h3>
+                <button class="close" onclick="admin.closeTransactionModal()">&times;</button>
+            </div>
+            <div id="transactionDetailContent">
+                <!-- Transaction details will be loaded here -->
+            </div>
         </div>
     </div>
 
