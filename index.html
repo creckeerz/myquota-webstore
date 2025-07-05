@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MyQuota - Toko Kuota Online</title>
     <meta name="description" content="Beli kuota internet murah dan cepat. Official XL, AXIS, Paket Harian, dan Perpanjangan Masa Aktif.">
-    <link rel="icon" href="/assets/images/favicon.ico">
-    <link rel="stylesheet" href="/assets/css/main.css">
-    <link rel="stylesheet" href="/assets/css/responsive.css">
+    <link rel="icon" href="assets/images/favicon.ico">
+    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="assets/css/responsive.css">
 </head>
 <body>
     <div class="container">
@@ -21,8 +21,8 @@
         <div class="balance-card">
             <div class="balance-info">
                 <div>
-                    <div class="balance-amount">Saldo Anda</div>
-                    <div class="balance-number">0812-3456-7890</div>
+                    <div class="balance-amount">Selamat Datang!</div>
+                    <div class="balance-number">Pilih paket kuota terbaik</div>
                 </div>
                 <div>💳</div>
             </div>
@@ -34,18 +34,25 @@
         <!-- Promo Banner -->
         <div class="promo-banner">
             <div class="promo-text">🔥 PROMO HARI INI! 🔥</div>
-            <div class="promo-subtext">Cashback 20% untuk pembelian paket 10GB ke atas!</div>
+            <div class="promo-subtext">Harga terbaik untuk semua operator!</div>
         </div>
 
         <!-- Category Tabs -->
         <div class="nav-tabs" id="categoryTabs">
-            <!-- Categories will be loaded dynamically -->
+            <button class="nav-tab active" data-category="official">Official XL / AXIS</button>
+            <button class="nav-tab" data-category="circle">XL Circle</button>
+            <button class="nav-tab" data-category="harian">Paket Harian</button>
+            <button class="nav-tab" data-category="perpanjangan">Perpanjangan</button>
         </div>
 
         <!-- Package List -->
         <div class="content">
             <div class="package-grid" id="packageGrid">
                 <!-- Packages will be loaded dynamically -->
+                <div class="loading show">
+                    <div class="spinner"></div>
+                    <div>Memuat paket...</div>
+                </div>
             </div>
             
             <button class="buy-button" id="buyButton" onclick="buyPackage()" disabled>
@@ -72,7 +79,7 @@
                     <div class="nav-icon">🏠</div>
                     <div>Beranda</div>
                 </a>
-                <a href="/admin" class="nav-item">
+                <a href="admin" class="nav-item">
                     <div class="nav-icon">⚙️</div>
                     <div>Admin</div>
                 </a>
@@ -80,8 +87,24 @@
         </div>
     </div>
 
-    <script src="/assets/js/utils.js"></script>
-    <script src="/assets/js/api.js"></script>
-    <script src="/assets/js/main.js"></script>
+    <script src="assets/js/utils.js"></script>
+    <script src="assets/js/api.js"></script>
+    <script src="assets/js/main.js"></script>
+    
+    <script>
+        // Test API connection on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 MyQuota loading...');
+            const connected = await API.testConnection();
+            if (!connected) {
+                document.getElementById('packageGrid').innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">⚠️</div>
+                        <div>Gagal terhubung ke server. Silakan coba lagi.</div>
+                    </div>
+                `;
+            }
+        });
+    </script>
 </body>
 </html>
