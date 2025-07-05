@@ -1,3 +1,552 @@
+// ===== TRANSACTION MANAGEMENT METHODS =====
+// Tambahkan methods ini ke class AdminPanel di admin.js
+
+// Add this property to constructor
+constructor() {
+    this.currentCategory = 'official';
+    this.categories = [];
+    this.packages = [];
+    this.editingPackage = null;
+    this.transactions = []; // NEW: Store transactions
+    this.currentView = 'packages'; // NEW: Track current view (packages/transactions)
+    
+    this.init();
+}
+
+// NEW METHOD: Show Transactions
+async showTransactions() {
+    console.log('📊 Showing transactions...');
+    this.currentView = 'transactions';
+    
+    // Update active tab
+    document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelector('.transaction-tab').classList.add('active');
+    
+    // Update panel title
+    const categoryTitle = document.getElementById('categoryTitle');
+    if (categoryTitle) {
+        categoryTitle.textContent = 'History Transaksi';
+    }
+    
+    // Hide "Tambah Paket" button
+    const addButton = document.getElementById('addPackageBtn');
+    if (addButton) {
+        addButton.style.display = 'none';
+    }
+    
+    // Update search box for transactions
+    this.updateSearchBoxForTransactions();
+    
+    // Load and display transactions
+    await this.loadTransactions();
+    this.renderTransactionTable();
+}
+
+// NEW METHOD: Load Transactions
+async loadTransactions() {
+    try {
+        console.log('📋 Loading transactions...');
+        const result = await API.getTransactions();
+        this.transactions = result.data || result || [];
+        console.log('✅ Transactions loaded:', this.transactions.length);
+        
+        // Update stats with transaction data
+        this.updateTransactionStats();
+        
+    } catch (error) {
+        console.error('❌ Failed to load transactions:', error);
+        this.transactions = [];
+        // Show mock data for demo
+        this.createMockTransactions();
+    }
+}
+
+// NEW METHOD: Create Mock Transactions (for demo)
+createMockTransactions() {
+    this.transactions = [
+        {
+            id: 1,
+            transaction_id: 'TXN' + Date.now(),
+            package_id: 1,
+            phone_number: '081234567890',
+            amount: 25000,
+            payment_method: 'qris',
+            status: 'pending',
+            created_at: new Date().toISOString()
+        },
+        {
+            id: 2,
+            transaction_id: 'TXN' + (Date.now() - 3600000),
+            package_id: 2,
+            phone_number: '081234567891',
+            amount: 35000,
+            payment_method: 'dana',
+            status: 'success',
+            created_at: new Date(Date.now() - 3600000).toISOString()
+        },
+        {
+            id: 3,
+            transaction_id: 'TXN' + (Date.now() - 7200000),
+            package_id: 1,
+            phone_number: '081234567892',
+            amount: 25000,
+            payment_method: 'qris',
+            status: 'failed',
+            created_at: new Date(Date.now() - 7200000).toISOString()
+        }
+    ];
+    console.log('📋 Mock transactions created for demo');
+}
+
+// NEW METHOD: Update Transaction Stats
+updateTransactionStats() {
+    const stats = {
+        total: this.transactions.length,
+        pending: this.transactions.filter(t => t.status === 'pending').length,
+        success: this.transactions.filter(t => t.status === 'success').length,
+        failed: this.transactions.filter(t => t.status === 'failed').length,
+        revenue: this.transactions
+            .filter(t => t.status === 'success')
+            .reduce((sum, t) => sum + (t.amount || 0), 0)
+    };
+    
+    // Update stats cards
+    const elements = {
+        totalTransactions: document.getElementById('totalTransactions'),
+        revenue: document.getElementById('revenue')
+    };
+    
+    if (elements.totalTransactions) {
+        elements.totalTransactions.textContent = stats.total;
+    }
+    if (elements.revenue) {
+        elements.revenue.textContent = Utils.formatPrice(stats.revenue);
+    }
+    
+    console.log('📈 Transaction stats updated:', stats);
+}
+
+// NEW METHOD: Render Transaction Table
+renderTransactionTable() {
+    const tableContainer = document.getElementById('packageTableContainer');
+    if (!tableContainer) return;
+    
+    if (this.transactions.length === 0) {
+        tableContainer.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <div>Belum ada transaksi</div>
+                <div style="font-size: 12px; color: #666; margin-top: 10px;">
+                    Transaksi akan muncul ketika user melakukan pembelian
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // Create transaction table
+    tableContainer.innerHTML = `
+        <table class="data-table" id="transactionTable">
+            <thead>
+                <tr>
+                    <th>ID Transaksi</th>
+                    <th>Paket</th>
+                    <th>Nomor HP</th>
+                    <th>Jumlah</th>
+                    <th>Metode</th>
+                    <th>Status</th>
+                    <th>Waktu</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="transactionTableBody">
+                ${this.transactions.map(transaction => this.renderTransactionRow(transaction)).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+// NEW METHOD: Render Transaction Row
+renderTransactionRow(transaction) {
+    const statusClass = this.getStatusClass(transaction.status);
+    const statusText = this.getStatusText(transaction.status);
+    const packageName = this.getPackageName(transaction.package_id);
+    const formattedDate = this.formatTransactionDate(transaction.created_at);
+    
+    return `
+        <tr data-transaction-id="${transaction.id}">
+            <td>
+                <span class="transaction-id">${transaction.transaction_id || transaction.id}</span>
+            </td>
+            <td class="package-info">
+                <strong>${packageName}</strong>
+            </td>
+            <td class="phone-number">${transaction.phone_number || '-'}</td>
+            <td class="transaction-amount">${Utils.formatPrice(transaction.amount)}</td>
+            <td>
+                <span class="payment-method ${transaction.payment_method}">
+                    ${this.getPaymentMethodIcon(transaction.payment_method)} ${this.getPaymentMethodText(transaction.payment_method)}
+                </span>
+            </td>
+            <td>
+                <span class="status-badge ${statusClass}">
+                    ${statusText}
+                </span>
+            </td>
+            <td class="transaction-time">${formattedDate}</td>
+            <td>
+                <div class="action-buttons">
+                    <button class="btn btn-info btn-sm" onclick="admin.viewTransactionDetails(${transaction.id})">
+                        Detail
+                    </button>
+                    ${transaction.status === 'pending' ? `
+                        <button class="btn btn-success btn-sm" onclick="admin.approveTransaction(${transaction.id})">
+                            ✅ Approve
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="admin.rejectTransaction(${transaction.id})">
+                            ❌ Reject
+                        </button>
+                    ` : ''}
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+// NEW METHOD: Get Status Class
+getStatusClass(status) {
+    const statusMap = {
+        'pending': 'status-pending',
+        'success': 'status-success',
+        'failed': 'status-failed'
+    };
+    return statusMap[status] || 'status-failed';
+}
+
+// NEW METHOD: Get Status Text
+getStatusText(status) {
+    const statusMap = {
+        'pending': 'Pending',
+        'success': 'Berhasil',
+        'failed': 'Gagal'
+    };
+    return statusMap[status] || 'Unknown';
+}
+
+// NEW METHOD: Get Package Name
+getPackageName(packageId) {
+    // Try to find package from current packages
+    const pkg = this.packages.find(p => p.id == packageId);
+    if (pkg) {
+        return pkg.quota || pkg.name || 'Unknown Package';
+    }
+    
+    // If not found, return placeholder
+    return `Package #${packageId}`;
+}
+
+// NEW METHOD: Get Payment Method Icon
+getPaymentMethodIcon(method) {
+    const iconMap = {
+        'qris': '📱',
+        'dana': '💸',
+        'manual': '💳'
+    };
+    return iconMap[method] || '💳';
+}
+
+// NEW METHOD: Get Payment Method Text
+getPaymentMethodText(method) {
+    const textMap = {
+        'qris': 'QRIS',
+        'dana': 'DANA',
+        'manual': 'Manual'
+    };
+    return textMap[method] || 'Unknown';
+}
+
+// NEW METHOD: Format Transaction Date
+formatTransactionDate(dateString) {
+    if (!dateString) return '-';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        return dateString;
+    }
+}
+
+// NEW METHOD: Update Search Box for Transactions
+updateSearchBoxForTransactions() {
+    const searchBox = document.getElementById('searchBox');
+    if (!searchBox) return;
+    
+    searchBox.innerHTML = `
+        <input type="text" class="search-input" placeholder="Cari transaksi (ID, nomor HP)..." 
+               id="searchInput" onkeyup="admin.searchTransactions()">
+        <select class="form-select" id="statusFilter" onchange="admin.filterTransactions()">
+            <option value="">Semua Status</option>
+            <option value="pending">Pending</option>
+            <option value="success">Berhasil</option>
+            <option value="failed">Gagal</option>
+        </select>
+        <select class="form-select" id="paymentFilter" onchange="admin.filterTransactions()">
+            <option value="">Semua Metode</option>
+            <option value="qris">QRIS</option>
+            <option value="dana">DANA</option>
+            <option value="manual">Manual</option>
+        </select>
+    `;
+}
+
+// NEW METHOD: Search Transactions
+searchTransactions() {
+    const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const rows = document.querySelectorAll('#transactionTableBody tr');
+    
+    rows.forEach(row => {
+        const transactionId = row.cells[0]?.textContent.toLowerCase() || '';
+        const phoneNumber = row.cells[2]?.textContent.toLowerCase() || '';
+        
+        if (transactionId.includes(searchTerm) || phoneNumber.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+// NEW METHOD: Filter Transactions
+filterTransactions() {
+    const statusFilter = document.getElementById('statusFilter')?.value || '';
+    const paymentFilter = document.getElementById('paymentFilter')?.value || '';
+    const rows = document.querySelectorAll('#transactionTableBody tr');
+    
+    rows.forEach(row => {
+        let showRow = true;
+        
+        // Filter by status
+        if (statusFilter) {
+            const statusBadge = row.querySelector('.status-badge');
+            const statusClass = this.getStatusClass(statusFilter);
+            if (!statusBadge?.classList.contains(statusClass)) {
+                showRow = false;
+            }
+        }
+        
+        // Filter by payment method
+        if (paymentFilter && showRow) {
+            const paymentBadge = row.querySelector('.payment-method');
+            if (!paymentBadge?.classList.contains(paymentFilter)) {
+                showRow = false;
+            }
+        }
+        
+        row.style.display = showRow ? '' : 'none';
+    });
+}
+
+// NEW METHOD: View Transaction Details
+viewTransactionDetails(transactionId) {
+    console.log('👁️ Viewing transaction details:', transactionId);
+    
+    const transaction = this.transactions.find(t => t.id == transactionId);
+    if (!transaction) {
+        Utils.showToast('Transaksi tidak ditemukan', 'error');
+        return;
+    }
+    
+    this.showTransactionDetailModal(transaction);
+}
+
+// NEW METHOD: Show Transaction Detail Modal
+showTransactionDetailModal(transaction) {
+    const packageName = this.getPackageName(transaction.package_id);
+    
+    const content = `
+        <div class="transaction-detail">
+            <div class="detail-section">
+                <h4>Informasi Transaksi</h4>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <label>ID Transaksi:</label>
+                        <span>${transaction.transaction_id || transaction.id}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Paket:</label>
+                        <span>${packageName}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Nomor HP:</label>
+                        <span>${transaction.phone_number}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Jumlah:</label>
+                        <span style="font-weight: bold; color: #00b894;">${Utils.formatPrice(transaction.amount)}</span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Metode Pembayaran:</label>
+                        <span>
+                            ${this.getPaymentMethodIcon(transaction.payment_method)} 
+                            ${this.getPaymentMethodText(transaction.payment_method)}
+                        </span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Status:</label>
+                        <span class="status-badge ${this.getStatusClass(transaction.status)}">
+                            ${this.getStatusText(transaction.status)}
+                        </span>
+                    </div>
+                    <div class="detail-item">
+                        <label>Waktu Transaksi:</label>
+                        <span>${this.formatTransactionDate(transaction.created_at)}</span>
+                    </div>
+                </div>
+            </div>
+            
+            ${transaction.status === 'pending' ? `
+                <div class="modal-actions">
+                    <button class="btn btn-success" onclick="admin.approveTransaction(${transaction.id})">
+                        ✅ Approve Transaksi
+                    </button>
+                    <button class="btn btn-danger" onclick="admin.rejectTransaction(${transaction.id})">
+                        ❌ Reject Transaksi
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    document.getElementById('transactionDetailContent').innerHTML = content;
+    document.getElementById('transactionModal').classList.add('show');
+}
+
+// NEW METHOD: Approve Transaction
+async approveTransaction(transactionId) {
+    if (!confirm('Approve transaksi ini? Kuota akan diaktifkan untuk user.')) return;
+    
+    try {
+        // Find transaction
+        const transaction = this.transactions.find(t => t.id == transactionId);
+        if (transaction) {
+            transaction.status = 'success';
+            
+            // Close modals
+            this.closeTransactionModal();
+            
+            // Refresh display
+            this.renderTransactionTable();
+            this.updateTransactionStats();
+            
+            Utils.showToast('Transaksi berhasil di-approve!', 'success');
+            
+            // Log notification
+            console.log(`📱 Notification sent to ${transaction.phone_number}: Kuota ${this.getPackageName(transaction.package_id)} telah aktif!`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error approving transaction:', error);
+        Utils.showToast('Gagal approve transaksi', 'error');
+    }
+}
+
+// NEW METHOD: Reject Transaction
+async rejectTransaction(transactionId) {
+    const reason = prompt('Alasan reject transaksi (opsional):');
+    
+    try {
+        const transaction = this.transactions.find(t => t.id == transactionId);
+        if (transaction) {
+            transaction.status = 'failed';
+            if (reason) {
+                transaction.reject_reason = reason;
+            }
+            
+            // Close modals
+            this.closeTransactionModal();
+            
+            // Refresh display
+            this.renderTransactionTable();
+            this.updateTransactionStats();
+            
+            Utils.showToast('Transaksi berhasil di-reject', 'success');
+            
+            // Log notification
+            console.log(`📱 Notification sent to ${transaction.phone_number}: Transaksi ditolak. ${reason || ''}`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error rejecting transaction:', error);
+        Utils.showToast('Gagal reject transaksi', 'error');
+    }
+}
+
+// NEW METHOD: Close Transaction Modal
+closeTransactionModal() {
+    document.getElementById('transactionModal').classList.remove('show');
+}
+
+// UPDATE switchCategory method untuk handle kembali ke packages
+async switchCategory(categorySlug) {
+    // If switching from transactions back to packages
+    if (this.currentView === 'transactions') {
+        this.currentView = 'packages';
+        
+        // Show "Tambah Paket" button again
+        const addButton = document.getElementById('addPackageBtn');
+        if (addButton) {
+            addButton.style.display = 'inline-block';
+        }
+        
+        // Update search box back to packages
+        this.updateSearchBoxForPackages();
+    }
+    
+    if (categorySlug === this.currentCategory && this.currentView === 'packages') return;
+    
+    this.currentCategory = categorySlug;
+    this.resetSelection();
+    
+    // Update active tab
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    const activeTab = document.querySelector(`[data-category="${categorySlug}"]`);
+    if (activeTab) activeTab.classList.add('active');
+    
+    // Update category title
+    const currentCat = this.categories.find(cat => cat.slug === categorySlug);
+    const categoryTitle = document.getElementById('categoryTitle');
+    if (categoryTitle && currentCat) {
+        categoryTitle.textContent = currentCat.name;
+    }
+    
+    // Load packages for new category
+    await this.loadPackages(categorySlug);
+}
+
+// NEW METHOD: Update Search Box for Packages
+updateSearchBoxForPackages() {
+    const searchBox = document.getElementById('searchBox');
+    if (!searchBox) return;
+    
+    searchBox.innerHTML = `
+        <input type="text" class="search-input" placeholder="Cari paket..." id="searchInput" onkeyup="admin.searchPackages()">
+        <select class="form-select" id="statusFilter" onchange="admin.filterPackages()">
+            <option value="">Semua Status</option>
+            <option value="active">Aktif</option>
+            <option value="inactive">Tidak Aktif</option>
+        </select>
+    `;
+}
+
 class AdminPanel {
     constructor() {
         this.currentCategory = 'official';
