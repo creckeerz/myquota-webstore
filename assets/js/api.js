@@ -1,4 +1,5 @@
 class API {
+    // ✅ URL Google Apps Script Anda yang sudah benar
     static BASE_URL = 'https://script.google.com/macros/s/AKfycbzvG5UhV2VtUjl7mo9xa4-qMukmUb2LzsWVIx-P0P85TxLbCgY2Ao_PELU-oikhOXcjgA/exec';
     
     static async request(endpoint, method = 'GET', data = null) {
@@ -22,11 +23,24 @@ class API {
         }
         
         try {
+            console.log('🔄 API Request:', endpoint, method, data);
             const response = await fetch(url, options);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const result = await response.json();
+            console.log('✅ API Response:', result);
+            
+            // Handle Apps Script response format
+            if (result.error && !result.success) {
+                throw new Error(result.error);
+            }
+            
             return result;
         } catch (error) {
-            console.error('API Error:', error);
+            console.error('❌ API Error:', error);
             throw new Error('Network error: ' + error.message);
         }
     }
@@ -81,5 +95,28 @@ class API {
     }
 }
 
-// Configuration - Update this with your actual Google Apps Script URL
-API.BASE_URL = 'https://script.google.com/macros/s/AKfycbzvG5UhV2VtUjl7mo9xa4-qMukmUb2LzsWVIx-P0P85TxLbCgY2Ao_PELU-oikhOXcjgA/exec';
+// Test connection function
+API.testConnection = async function() {
+    try {
+        console.log('🧪 Testing API connection...');
+        const result = await this.request('packages');
+        console.log('✅ API Connection successful:', result);
+        return true;
+    } catch (error) {
+        console.error('❌ API Connection failed:', error);
+        return false;
+    }
+};
+
+// Test auth
+API.testAuth = async function() {
+    try {
+        console.log('🔐 Testing admin login...');
+        const result = await this.login('admin@myquota.com', 'admin123');
+        console.log('✅ Login test result:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Login test failed:', error);
+        return false;
+    }
+};
