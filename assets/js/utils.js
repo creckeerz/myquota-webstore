@@ -1,5 +1,6 @@
 class Utils {
     static formatPrice(price) {
+        if (!price || isNaN(price)) return 'Rp 0';
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
@@ -40,6 +41,9 @@ class Utils {
             setTimeout(() => {
                 toast.classList.remove('show');
             }, 3000);
+        } else {
+            // Fallback to alert if toast element not found
+            alert(message);
         }
     }
     
@@ -70,11 +74,22 @@ class Utils {
     }
     
     static copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(() => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                this.showToast('Copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+            });
+        } else {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
             this.showToast('Copied to clipboard!');
-        }).catch(err => {
-            console.error('Failed to copy: ', err);
-        });
+        }
     }
     
     static scrollToTop() {
