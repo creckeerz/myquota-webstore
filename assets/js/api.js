@@ -1,29 +1,45 @@
 class API {
-    // ✅ URL Google Apps Script Anda yang sudah benar
-    static BASE_URL = 'https://script.google.com/macros/s/AKfycbxNO_uhdHSPa5VVnveP4QVy3bUXfa3tEa4xfrQDCKlYzCBSdH0TAyKnkSrqQ14-j39LzQ/exec';
+    // URL Google Apps Script Anda
+    static BASE_URL = 'https://script.google.com/macros/s/AKfycbyD11JWOX45UPYsstn4XJRSy73ngi9wTj69Am4D_ftM4XVm9RD8An478olbVlY6CgcHUA/exec';
     
     static async request(endpoint, method = 'GET', data = null) {
-        const url = new URL(this.BASE_URL);
-        url.searchParams.append('path', endpoint);
-        url.searchParams.append('method', method);
-        
-        const options = {
-            method: 'POST', // Always POST for Google Apps Script
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            }
-        };
-        
-        if (data) {
-            const formData = new URLSearchParams();
-            if (method !== 'GET') {
-                formData.append('postData', JSON.stringify(data));
-            }
-            options.body = formData;
-        }
-        
         try {
-            console.log('🔄 API Request:', endpoint, method, data);
+            const url = new URL(this.BASE_URL);
+            
+            // Parse endpoint to extract path and query parameters
+            const [path, queryString] = endpoint.split('?');
+            url.searchParams.append('path', path);
+            url.searchParams.append('method', method);
+            
+            // Add query parameters if they exist
+            if (queryString) {
+                const queryParams = new URLSearchParams(queryString);
+                for (const [key, value] of queryParams) {
+                    url.searchParams.append(key, value);
+                }
+            }
+            
+            const options = {
+                method: 'POST', // Always POST for Google Apps Script
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            };
+            
+            // Add POST data if provided
+            if (data && method !== 'GET') {
+                const formData = new URLSearchParams();
+                formData.append('postData', JSON.stringify(data));
+                options.body = formData;
+            }
+            
+            console.log('🔄 API Request:', {
+                url: url.toString(),
+                method: method,
+                data: data,
+                options: options
+            });
+            
             const response = await fetch(url, options);
             
             if (!response.ok) {
@@ -39,10 +55,16 @@ class API {
             }
             
             return result;
+            
         } catch (error) {
             console.error('❌ API Error:', error);
-            throw new Error('Network error: ' + error.message);
+            throw new Error('API request failed: ' + error.message);
         }
+    }
+    
+    // Test endpoint
+    static async test() {
+        return this.request('test');
     }
     
     // Categories
@@ -56,8 +78,10 @@ class API {
     
     // Packages
     static async getPackages(categorySlug = null) {
-        const endpoint = categorySlug ? `packages?category=${categorySlug}` : 'packages';
-        return this.request(endpoint);
+        if (categorySlug) {
+            return this.request(`packages?category=${categorySlug}`);
+        }
+        return this.request('packages');
     }
     
     static async createPackage(packageData) {
@@ -90,16 +114,16 @@ class API {
         return this.request(`auth?action=check&token=${token}`);
     }
     
-    static async logout() {
-        return this.request('auth?action=logout', 'POST');
+    static async logout(token) {
+        return this.request(`auth?action=logout&token=${token}`, 'POST');
     }
 }
 
-// Test connection function
+// Test functions
 API.testConnection = async function() {
     try {
         console.log('🧪 Testing API connection...');
-        const result = await this.request('packages');
+        const result = await this.test();
         console.log('✅ API Connection successful:', result);
         return true;
     } catch (error) {
@@ -108,7 +132,30 @@ API.testConnection = async function() {
     }
 };
 
-// Test auth
+API.testPackages = async function() {
+    try {
+        console.log('📦 Testing packages endpoint...');
+        const result = await this.getPackages();
+        console.log('✅ Packages test successful:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Packages test failed:', error);
+        return false;
+    }
+};
+
+API.testCategories = async function() {
+    try {
+        console.log('🗂️ Testing categories endpoint...');
+        const result = await this.getCategories();
+        console.log('✅ Categories test successful:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Categories test failed:', error);
+        return false;
+    }
+};
+
 API.testAuth = async function() {
     try {
         console.log('🔐 Testing admin login...');
@@ -119,4 +166,32 @@ API.testAuth = async function() {
         console.error('❌ Login test failed:', error);
         return false;
     }
+};
+
+// Helper function to test all endpoints
+API.testAll = async function() {
+    console.log('🚀 Running comprehensive API tests...');
+    
+    const tests = [
+        { name: 'Connection', fn: () => this.testConnection() },
+        { name: 'Categories', fn: () => this.testCategories() },
+        { name: 'Packages', fn: () => this.testPackages() },
+        { name: 'Auth', fn: () => this.testAuth() }
+    ];
+    
+    const results = {};
+    
+    for (const test of tests) {
+        try {
+            console.log(`\n--- Testing ${test.name} ---`);
+            results[test.name] = await test.fn();
+            console.log(`✅ ${test.name} test completed`);
+        } catch (error) {
+            console.error(`❌ ${test.name} test failed:`, error);
+            results[test.name] = { error: error.message };
+        }
+    }
+    
+    console.log('\n📊 Test Results Summary:', results);
+    return results;
 };
