@@ -1,0 +1,116 @@
+/* Responsive Design */
+@media (max-width: 480px) {
+    .container {
+        max-width: 100%;
+        margin: 0;
+    }
+    
+    .header {
+        padding: 20px 15px;
+    }
+    
+    .header h1 {
+        font-size: 24px;
+    }
+    
+    .balance-card,
+    .promo-banner {
+        margin: 15px;
+        padding: 20px;
+    }
+    
+    .nav-tabs {
+        margin: 0 15px;
+    }
+    
+    .nav-tab {
+        padding: 15px 8px;
+        font-size: 12px;
+    }
+    
+    .content {
+        padding: 15px;
+        padding-bottom: 100px;
+    }
+    
+    .package-card {
+        padding: 20px;
+    }
+    
+    .package-quota {
+        font-size: 20px;
+    }
+    
+    .package-price {
+        font-size: 16px;
+    }
+    
+    .buy-button {
+        padding: 16px 30px;
+        font-size: 16px;
+    }
+    
+    .toast {
+        top: 10px;
+        right: 10px;
+        left: 10px;
+        transform: translateY(-100%);
+    }
+    
+    .toast.show {
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 360px) {
+    .header h1 {
+        font-size: 22px;
+    }
+    
+    .balance-amount {
+        font-size: 18px;
+    }
+    
+    .promo-text {
+        font-size: 14px;
+    }
+    
+    .nav-tab {
+        padding: 12px 6px;
+        font-size: 11px;
+    }
+    
+    .package-quota {
+        font-size: 18px;
+    }
+    
+    .package-price {
+        font-size: 15px;
+    }
+    
+    .popular-badge {
+        font-size: 10px;
+        padding: 6px 15px;
+    }
+}
+
+/* Landscape orientation */
+@media (orientation: landscape) and (max-height: 600px) {
+    .header {
+        padding: 15px 20px;
+    }
+    
+    .balance-card {
+        margin: 15px 20px;
+        padding: 20px;
+    }
+    
+    .promo-banner {
+        margin: 15px 20px;
+        padding: 15px;
+    }
+    
+    .content {
+        padding: 15px 20px 80px;
+    }
+}
