@@ -10,27 +10,25 @@ class MyQuotaApp {
     
     async init() {
         console.log('🚀 MyQuota Customer App initializing...');
+        this.showLoading('loading');
         
         try {
             // Test API connection first
-            console.log('🧪 Testing API connection...');
             const connected = await API.testConnection();
             if (!connected) {
                 throw new Error('Failed to connect to API');
             }
-            console.log('✅ API connection successful');
             
             // Load categories and initial packages
             await this.loadCategories();
             await this.loadPackages(this.currentCategory);
             
             this.setupEventListeners();
+            this.hideLoading('loading');
             console.log('✅ MyQuota Customer App loaded successfully');
         } catch (error) {
             console.error('❌ Initialization error:', error);
-            this.showError('Gagal memuat data: ' + error.message);
-        } finally {
-            // Always hide loading
+            this.showError('Gagal memuat data. Silakan refresh halaman.');
             this.hideLoading('loading');
         }
     }
@@ -64,40 +62,19 @@ class MyQuotaApp {
             this.showPackageLoading();
             
             const result = await API.getPackages(categorySlug);
-            console.log('📋 Raw API Response:', result);
+            this.packages = result.data || result || [];
             
-            // Handle different response formats
-            let packages = [];
-            if (result && result.success && result.data) {
-                packages = result.data;
-            } else if (result && Array.isArray(result)) {
-                packages = result;
-            } else if (result && result.data && Array.isArray(result.data)) {
-                packages = result.data;
-            } else {
-                console.warn('⚠️ Unexpected API response format:', result);
-                packages = [];
-            }
-            
-            this.packages = packages;
-            console.log('📊 Final packages array:', this.packages);
-            console.log('📊 Package count:', this.packages.length);
-            
-            // Force render packages
+            console.log('✅ Packages loaded:', this.packages.length, this.packages);
             this.renderPackages();
-            
         } catch (error) {
             console.error('❌ Failed to load packages:', error);
-            this.showPackageError('Gagal memuat paket: ' + error.message);
+            this.showPackageError('Gagal memuat paket untuk kategori ini');
         }
     }
     
     renderCategoryTabs() {
         const tabsContainer = document.getElementById('categoryTabs');
-        if (!tabsContainer) {
-            console.warn('⚠️ Category tabs container not found');
-            return;
-        }
+        if (!tabsContainer) return;
         
         tabsContainer.innerHTML = this.categories.map(category => `
             <button class="nav-tab ${category.slug === this.currentCategory ? 'active' : ''}" 
@@ -105,8 +82,6 @@ class MyQuotaApp {
                 ${category.name}
             </button>
         `).join('');
-        
-        console.log('✅ Category tabs rendered');
     }
     
     showPackageLoading() {
@@ -128,7 +103,7 @@ class MyQuotaApp {
                 <div class="empty-state">
                     <div class="empty-state-icon">⚠️</div>
                     <div>${message}</div>
-                    <button onclick="app.debugReload()" 
+                    <button onclick="app.loadPackages(app.currentCategory)" 
                             style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
                         Coba Lagi
                     </button>
@@ -138,76 +113,35 @@ class MyQuotaApp {
     }
     
     renderPackages() {
-        console.log('🎨 Rendering packages, count:', this.packages ? this.packages.length : 'undefined');
-        
         const packageGrid = document.getElementById('packageGrid');
-        if (!packageGrid) {
-            console.error('❌ Package grid element not found');
-            return;
-        }
-        
-        // Clear loading state first
-        packageGrid.innerHTML = '';
+        if (!packageGrid) return;
         
         if (!this.packages || this.packages.length === 0) {
-            console.log('📦 No packages to render, showing empty state');
             packageGrid.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">📦</div>
-                    <div>Belum ada paket untuk kategori: ${this.currentCategory}</div>
+                    <div>Belum ada paket untuk kategori ini</div>
                     <div style="font-size: 12px; color: #666; margin-top: 10px;">
-                        Tambahkan paket melalui panel admin
+                        Admin dapat menambah paket melalui panel admin
                     </div>
-                    <button onclick="app.debugReload()" 
-                            style="margin-top: 15px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                        🔄 Refresh
-                    </button>
                 </div>
             `;
             return;
         }
         
-        console.log('✅ Rendering', this.packages.length, 'packages');
-        
-        try {
-            const packageCards = this.packages.map((pkg, index) => {
-                console.log(`📄 Rendering package ${index + 1}:`, pkg);
-                
-                // Ensure all values are defined
-                const id = pkg.id || index;
-                const quota = pkg.quota || 'N/A';
-                const price = pkg.price || 0;
-                const name = pkg.name || pkg.description || 'Paket Kuota';
-                const validity = pkg.validity || '30 hari';
-                const isPopular = pkg.is_popular || false;
-                
-                return `
-                    <div class="package-card" data-package-id="${id}" onclick="app.selectPackage(${id})">
-                        ${isPopular ? '<div class="popular-badge">POPULER</div>' : ''}
-                        <div class="package-header">
-                            <div class="package-quota">${quota}</div>
-                            <div class="package-price">${this.formatPrice(price)}</div>
-                        </div>
-                        <div class="package-details">${name}</div>
-                        <div class="package-validity">Berlaku ${validity}</div>
-                    </div>
-                `;
-            }).join('');
-            
-            packageGrid.innerHTML = packageCards;
-            console.log('✅ Packages rendered successfully in DOM');
-            
-        } catch (error) {
-            console.error('❌ Error rendering packages:', error);
-            packageGrid.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">⚠️</div>
-                    <div>Error rendering packages: ${error.message}</div>
+        packageGrid.innerHTML = this.packages.map(pkg => `
+            <div class="package-card" data-package-id="${pkg.id}" onclick="app.selectPackage(${pkg.id})">
+                ${pkg.is_popular ? '<div class="popular-badge">POPULER</div>' : ''}
+                <div class="package-header">
+                    <div class="package-quota">${pkg.quota || 'N/A'}</div>
+                    <div class="package-price">${this.formatPrice(pkg.price)}</div>
                 </div>
-            `;
-        }
+                <div class="package-details">${pkg.description || pkg.name || 'Paket kuota berkualitas'}</div>
+                <div class="package-validity">Berlaku ${pkg.validity || '30 hari'}</div>
+            </div>
+        `).join('');
         
-        // Reset selection
+        // Reset selection when packages change
         this.resetSelection();
     }
     
@@ -369,6 +303,14 @@ class MyQuotaApp {
                 this.resetSelection();
             }
         });
+        
+        // Refresh button (hidden, for debugging)
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                this.loadPackages(this.currentCategory);
+            }
+        });
     }
     
     showLoading(elementId) {
@@ -410,20 +352,6 @@ class MyQuotaApp {
             `;
         }
     }
-    
-    // Debug functions
-    async debugReload() {
-        console.log('🔧 Debug reload triggered');
-        await this.loadPackages(this.currentCategory);
-    }
-    
-    showDebugInfo() {
-        console.log('🔧 Debug Info:');
-        console.log('- Current Category:', this.currentCategory);
-        console.log('- Categories:', this.categories);
-        console.log('- Packages:', this.packages);
-        console.log('- Selected Package:', this.selectedPackage);
-    }
 }
 
 // Initialize app when DOM is loaded
@@ -445,17 +373,22 @@ function buyPackage() {
     }
 }
 
-// Debug functions
+// Debug functions (can be called from console)
 window.debugApp = {
-    showInfo: () => {
-        if (window.app) window.app.showDebugInfo();
-    },
     reloadPackages: () => {
-        if (window.app) window.app.debugReload();
+        if (window.app) {
+            window.app.loadPackages(window.app.currentCategory);
+        }
     },
-    testAPI: async () => {
-        const result = await API.testConnection();
-        console.log('🧪 API Test Result:', result);
-        return result;
+    testAPI: () => {
+        API.testConnection();
+    },
+    getPackages: () => {
+        return window.app ? window.app.packages : [];
+    },
+    switchCategory: (category) => {
+        if (window.app) {
+            window.app.switchCategory(category);
+        }
     }
 };
