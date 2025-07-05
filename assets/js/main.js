@@ -4,7 +4,6 @@ class MyQuotaApp {
         this.currentCategory = 'official';
         this.categories = [];
         this.packages = [];
-        this.currentTransaction = null; // Add this for payment system
         
         this.init();
     }
@@ -259,7 +258,6 @@ class MyQuotaApp {
         }
     }
     
-    // ===== UPDATED PAYMENT SYSTEM =====
     async buyPackage() {
         if (!this.selectedPackage) {
             this.showToast('Silakan pilih paket terlebih dahulu', 'error');
@@ -277,367 +275,34 @@ class MyQuotaApp {
             return;
         }
         
-        // Store transaction data
-        this.currentTransaction = {
-            package_id: this.selectedPackage.id,
-            phone_number: phoneNumber,
-            amount: this.selectedPackage.price,
-            package_name: this.selectedPackage.name || this.selectedPackage.quota,
-            package_quota: this.selectedPackage.quota
-        };
-        
-        // Show payment method selection popup
-        this.showPaymentMethodModal();
-    }
-    
-    showPaymentMethodModal() {
-        const modal = this.createPaymentMethodModal();
-        document.body.appendChild(modal);
-        
-        // Show modal with animation
-        setTimeout(() => {
-            modal.classList.add('show');
-        }, 10);
-    }
-    
-    createPaymentMethodModal() {
-        const modal = document.createElement('div');
-        modal.className = 'payment-modal';
-        modal.innerHTML = `
-            <div class="payment-modal-content">
-                <div class="payment-header">
-                    <h3>💳 Pilih Metode Pembayaran</h3>
-                    <button class="payment-close" onclick="this.closest('.payment-modal').remove()">&times;</button>
-                </div>
-                
-                <div class="payment-summary">
-                    <div class="payment-item">
-                        <strong>${this.currentTransaction.package_quota}</strong>
-                    </div>
-                    <div class="payment-amount">
-                        ${this.formatPrice(this.currentTransaction.amount)}
-                    </div>
-                    <div class="payment-phone">
-                        ${this.currentTransaction.phone_number}
-                    </div>
-                </div>
-                
-                <div class="payment-methods">
-                    <button class="payment-method qris-btn" onclick="app.payWithQRIS()">
-                        <div class="payment-icon">📱</div>
-                        <div class="payment-info">
-                            <div class="payment-name">QRIS</div>
-                            <div class="payment-desc">Scan QR Code dengan aplikasi e-wallet</div>
-                        </div>
-                        <div class="payment-arrow">→</div>
-                    </button>
-                    
-                    <button class="payment-method dana-btn" onclick="app.payWithDANA()">
-                        <div class="payment-icon">💸</div>
-                        <div class="payment-info">
-                            <div class="payment-name">Via DANA</div>
-                            <div class="payment-desc">Transfer langsung ke nomor DANA admin</div>
-                        </div>
-                        <div class="payment-arrow">→</div>
-                    </button>
-                </div>
-                
-                <div class="payment-footer">
-                    <small>🔒 Transaksi aman dan terenkripsi</small>
-                </div>
-            </div>
-        `;
-        
-        return modal;
-    }
-    
-    async payWithQRIS() {
-        console.log('📱 Processing QRIS payment...');
-        this.closePaymentModal();
+        this.showLoading('loading');
         
         try {
-            // Create transaction record
-            const result = await API.createTransaction({
-                ...this.currentTransaction,
-                payment_method: 'qris'
-            });
+            const transactionData = {
+                package_id: this.selectedPackage.id,
+                phone_number: phoneNumber,
+                amount: this.selectedPackage.price,
+                payment_method: 'manual'
+            };
+            
+            console.log('💳 Sending transaction:', transactionData);
+            const result = await API.createTransaction(transactionData);
             
             if (result.success) {
-                // Show QRIS modal with QR Code
-                this.showQRISModal(result.transaction_id || 'TXN' + Date.now());
+                this.hideLoading('loading');
+                this.showSuccessMessage();
+                this.resetSelection();
+                console.log('✅ Transaction successful:', result);
             } else {
-                throw new Error(result.error || 'Gagal membuat transaksi');
+                throw new Error(result.error || 'Transaksi gagal');
             }
             
         } catch (error) {
-            console.error('❌ QRIS payment failed:', error);
-            this.showToast('Gagal memproses pembayaran QRIS: ' + error.message, 'error');
+            this.hideLoading('loading');
+            console.error('❌ Transaction failed:', error);
+            this.showToast('Transaksi gagal: ' + error.message, 'error');
         }
     }
-    
-    async payWithDANA() {
-        console.log('💸 Processing DANA payment...');
-        this.closePaymentModal();
-        
-        try {
-            // Create transaction record
-            const result = await API.createTransaction({
-                ...this.currentTransaction,
-                payment_method: 'dana'
-            });
-            
-            if (result.success) {
-                // Show DANA transfer modal
-                this.showDANATransferModal(result.transaction_id || 'TXN' + Date.now());
-            } else {
-                throw new Error(result.error || 'Gagal membuat transaksi');
-            }
-            
-        } catch (error) {
-            console.error('❌ DANA payment failed:', error);
-            this.showToast('Gagal memproses pembayaran DANA: ' + error.message, 'error');
-        }
-    }
-    
-    showQRISModal(transactionId) {
-        // Generate QR Code URL
-        const qrData = JSON.stringify({
-            merchant: 'MyQuota',
-            amount: this.currentTransaction.amount,
-            description: this.currentTransaction.package_quota,
-            transaction_id: transactionId,
-            phone: this.currentTransaction.phone_number
-        });
-        
-        const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}`;
-        
-        const modal = document.createElement('div');
-        modal.className = 'payment-modal';
-        modal.innerHTML = `
-            <div class="payment-modal-content qris-modal">
-                <div class="qris-header">
-                    <div class="qris-logo">📱</div>
-                    <h3>Scan QR Code untuk Pembayaran</h3>
-                    <button class="payment-close" onclick="this.closest('.payment-modal').remove()">&times;</button>
-                </div>
-                
-                <div class="qris-content">
-                    <div class="qris-amount">${this.formatPrice(this.currentTransaction.amount)}</div>
-                    <div class="qris-package">${this.currentTransaction.package_quota}</div>
-                    
-                    <div class="qr-code-container">
-                        <img src="${qrCodeUrl}" alt="QR Code" class="qr-code-image" />
-                    </div>
-                    
-                    <div class="qris-instructions">
-                        <h4>Cara Pembayaran:</h4>
-                        <ol>
-                            <li>Buka aplikasi e-wallet (DANA, OVO, GoPay, ShopeePay)</li>
-                            <li>Pilih menu "Scan QR" atau "Bayar"</li>
-                            <li>Arahkan kamera ke QR Code di atas</li>
-                            <li>Konfirmasi pembayaran di aplikasi</li>
-                            <li>Screenshot bukti pembayaran</li>
-                        </ol>
-                    </div>
-                    
-                    <div class="transaction-info">
-                        <small><strong>ID Transaksi:</strong> ${transactionId}</small><br>
-                        <small><strong>Nomor HP:</strong> ${this.currentTransaction.phone_number}</small>
-                    </div>
-                </div>
-                
-                <div class="qris-footer">
-                    <div class="qris-timer">
-                        <span id="qrTimer">15:00</span> tersisa
-                    </div>
-                    <button class="btn-confirm-payment" onclick="app.confirmPayment('${transactionId}')">
-                        ✅ Sudah Bayar
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        modal.classList.add('show');
-        
-        // Start countdown timer
-        this.startQRTimer(modal);
-    }
-    
-    showDANATransferModal(transactionId) {
-        // Nomor DANA admin - GANTI DENGAN NOMOR DANA ANDA
-        const adminDANANumber = '081234567890'; // ⚠️ GANTI INI!
-        
-        const modal = document.createElement('div');
-        modal.className = 'payment-modal';
-        modal.innerHTML = `
-            <div class="payment-modal-content dana-modal">
-                <div class="dana-header">
-                    <div class="dana-logo">💸</div>
-                    <h3>Transfer via DANA</h3>
-                    <button class="payment-close" onclick="this.closest('.payment-modal').remove()">&times;</button>
-                </div>
-                
-                <div class="dana-content">
-                    <div class="dana-amount">${this.formatPrice(this.currentTransaction.amount)}</div>
-                    <div class="dana-package">${this.currentTransaction.package_quota}</div>
-                    
-                    <div class="dana-number-container">
-                        <div class="dana-label">Nomor DANA Admin:</div>
-                        <div class="dana-number" id="danaNumber">${adminDANANumber}</div>
-                        <button class="btn-copy-number" onclick="app.copyDANANumber('${adminDANANumber}')">
-                            📋 Copy Nomor
-                        </button>
-                    </div>
-                    
-                    <div class="dana-instructions">
-                        <h4>Langkah-langkah:</h4>
-                        <ol>
-                            <li>Buka aplikasi DANA</li>
-                            <li>Pilih menu "Kirim" atau "Transfer"</li>
-                            <li>Masukkan nomor DANA: <strong>${adminDANANumber}</strong></li>
-                            <li>Masukkan nominal: <strong>${this.formatPrice(this.currentTransaction.amount)}</strong></li>
-                            <li>Catatan: <strong>${this.currentTransaction.package_quota} - ${this.currentTransaction.phone_number}</strong></li>
-                            <li>Konfirmasi dan kirim transfer</li>
-                            <li>Screenshot bukti transfer</li>
-                        </ol>
-                    </div>
-                    
-                    <div class="transaction-info">
-                        <small><strong>ID Transaksi:</strong> ${transactionId}</small><br>
-                        <small><strong>Nomor HP:</strong> ${this.currentTransaction.phone_number}</small>
-                    </div>
-                </div>
-                
-                <div class="dana-footer">
-                    <button class="btn-open-dana" onclick="app.openDANAApp('${adminDANANumber}')">
-                        🚀 Buka Aplikasi DANA
-                    </button>
-                    <button class="btn-confirm-payment" onclick="app.confirmPayment('${transactionId}')">
-                        ✅ Sudah Transfer
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        modal.classList.add('show');
-    }
-    
-    openDANAApp(danaNumber) {
-        // Try to open DANA app with deep link
-        const danaUrl = `dana://transfer?number=${danaNumber}&amount=${this.currentTransaction.amount}`;
-        
-        // Attempt to open DANA app
-        window.location.href = danaUrl;
-        
-        // Fallback: show manual instruction
-        setTimeout(() => {
-            this.showToast('Jika aplikasi DANA tidak terbuka, buka manual dan transfer ke: ' + danaNumber, 'info');
-        }, 1000);
-    }
-    
-    copyDANANumber(number) {
-        // Copy to clipboard
-        if (navigator.clipboard) {
-            navigator.clipboard.writeText(number).then(() => {
-                this.showToast('Nomor DANA berhasil disalin!', 'success');
-            });
-        } else {
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = number;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            this.showToast('Nomor DANA berhasil disalin!', 'success');
-        }
-    }
-    
-    confirmPayment(transactionId) {
-        this.closePaymentModal();
-        
-        // Show confirmation message
-        this.showPaymentConfirmation(transactionId);
-        
-        // Reset selection
-        this.resetSelection();
-    }
-    
-    showPaymentConfirmation(transactionId) {
-        const modal = document.createElement('div');
-        modal.className = 'payment-modal';
-        modal.innerHTML = `
-            <div class="payment-modal-content success-modal">
-                <div class="success-header">
-                    <div class="success-icon">✅</div>
-                    <h3>Pembayaran Dikonfirmasi</h3>
-                </div>
-                
-                <div class="success-content">
-                    <div class="success-package">${this.currentTransaction.package_quota}</div>
-                    <div class="success-amount">${this.formatPrice(this.currentTransaction.amount)}</div>
-                    <div class="success-phone">${this.currentTransaction.phone_number}</div>
-                    
-                    <div class="success-message">
-                        <p>Terima kasih! Pembayaran Anda sedang diproses.</p>
-                        <p><strong>Kuota akan aktif dalam 5-15 menit</strong> setelah pembayaran dikonfirmasi admin.</p>
-                    </div>
-                    
-                    <div class="transaction-id">
-                        <small><strong>ID Transaksi:</strong> ${transactionId}</small>
-                    </div>
-                </div>
-                
-                <div class="success-actions">
-                    <button class="btn-success-ok" onclick="this.closest('.payment-modal').remove()">
-                        OK, Mengerti
-                    </button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        modal.classList.add('show');
-        
-        // Auto close after 8 seconds
-        setTimeout(() => {
-            modal.remove();
-        }, 8000);
-    }
-    
-    startQRTimer(modal) {
-        let timeLeft = 15 * 60; // 15 minutes
-        const timerElement = modal.querySelector('#qrTimer');
-        
-        const countdown = setInterval(() => {
-            const minutes = Math.floor(timeLeft / 60);
-            const seconds = timeLeft % 60;
-            timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            
-            if (timeLeft <= 0) {
-                clearInterval(countdown);
-                modal.querySelector('.qris-content').innerHTML = `
-                    <div style="text-align: center; padding: 40px; color: #e17055;">
-                        <div style="font-size: 48px; margin-bottom: 20px;">⏰</div>
-                        <div>QR Code sudah kedaluwarsa</div>
-                        <button onclick="app.payWithQRIS()" style="margin-top: 20px; padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 5px;">
-                            Generate QR Baru
-                        </button>
-                    </div>
-                `;
-            }
-            
-            timeLeft--;
-        }, 1000);
-    }
-    
-    closePaymentModal() {
-        const modals = document.querySelectorAll('.payment-modal');
-        modals.forEach(modal => modal.remove());
-    }
-    // ===== END PAYMENT SYSTEM =====
     
     validatePhoneNumber(phone) {
         // Indonesian phone number validation
@@ -702,7 +367,6 @@ class MyQuotaApp {
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 this.resetSelection();
-                this.closePaymentModal(); // Add this for escape modal
             }
         });
     }
@@ -759,7 +423,6 @@ class MyQuotaApp {
         console.log('- Categories:', this.categories);
         console.log('- Packages:', this.packages);
         console.log('- Selected Package:', this.selectedPackage);
-        console.log('- Current Transaction:', this.currentTransaction);
     }
 }
 
