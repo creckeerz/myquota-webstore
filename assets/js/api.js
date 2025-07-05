@@ -1,5 +1,4 @@
 class API {
-    // ⚠️ GANTI URL INI DENGAN WEB APP URL ANDA!
     static BASE_URL = 'https://script.google.com/macros/s/AKfycbwfhVXKZzRtGTld4XcWf1SGJqxtB-4c1G5gnXBpl9oy_U2HaDVjuRnNnMVK8_4AAeNTHw/exec';
     
     static async request(endpoint, method = 'GET', data = null) {
@@ -25,12 +24,6 @@ class API {
         try {
             const response = await fetch(url, options);
             const result = await response.json();
-            
-            // Handle Apps Script response format
-            if (result.error) {
-                throw new Error(result.error);
-            }
-            
             return result;
         } catch (error) {
             console.error('API Error:', error);
@@ -88,14 +81,5 @@ class API {
     }
 }
 
-// Test connection function
-API.testConnection = async function() {
-    try {
-        const result = await this.request('packages');
-        console.log('✅ API Connection successful:', result);
-        return true;
-    } catch (error) {
-        console.error('❌ API Connection failed:', error);
-        return false;
-    }
-};
+// Configuration - Update this with your actual Google Apps Script URL
+API.BASE_URL = 'https://script.google.com/macros/s/AKfycbwfhVXKZzRtGTld4XcWf1SGJqxtB-4c1G5gnXBpl9oy_U2HaDVjuRnNnMVK8_4AAeNTHw/exec';
