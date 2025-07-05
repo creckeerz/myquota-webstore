@@ -3,85 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyQuota - Toko Kuota Online</title>
-    <meta name="description" content="Beli kuota internet murah dan cepat. Official XL, AXIS, Paket Harian, dan Perpanjangan Masa Aktif.">
-    <link rel="icon" href="/assets/images/favicon.ico">
-    <link rel="stylesheet" href="/assets/css/main.css">
-    <link rel="stylesheet" href="/assets/css/responsive.css">
+    <title>MyQuota - Internet Package Store</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>🛒 MyQuota</h1>
-            <p>Toko Kuota Online Terpercaya</p>
-        </div>
-
-        <!-- Balance Card -->
-        <div class="balance-card">
-            <div class="balance-info">
-                <div>
-                    <div class="balance-amount">Saldo Anda</div>
-                    <div class="balance-number">0812-3456-7890</div>
+            <div class="header-content">
+                <div class="greeting">Selamat datang,</div>
+                <div class="user-name">Pengguna MyQuota</div>
+                <div class="balance-card">
+                    <div class="balance-label">Saldo Tersedia</div>
+                    <div class="balance-amount">Rp 0</div>
                 </div>
-                <div>💳</div>
-            </div>
-            <div class="quota-status">
-                <strong>Status:</strong> Siap untuk isi kuota
             </div>
         </div>
 
-        <!-- Promo Banner -->
-        <div class="promo-banner">
-            <div class="promo-text">🔥 PROMO HARI INI! 🔥</div>
-            <div class="promo-subtext">Cashback 20% untuk pembelian paket 10GB ke atas!</div>
+        <!-- Search -->
+        <div class="search-container">
+            <div class="search-box">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" class="search-input" placeholder="Cari paket internet..." id="searchInput">
+                <button class="filter-btn" onclick="toggleFilter()">
+                    <i class="fas fa-filter"></i>
+                </button>
+            </div>
         </div>
 
-        <!-- Category Tabs -->
-        <div class="nav-tabs" id="categoryTabs">
-            <!-- Categories will be loaded dynamically -->
+        <!-- Categories -->
+        <div class="categories">
+            <div class="category-grid" id="categoryGrid">
+                <!-- Categories will be loaded here -->
+            </div>
         </div>
 
-        <!-- Package List -->
-        <div class="content">
-            <div class="package-grid" id="packageGrid">
-                <!-- Packages will be loaded dynamically -->
+        <!-- Packages -->
+        <div class="packages">
+            <div class="packages-header">
+                <h2 class="packages-title">Paket Internet</h2>
+                <button class="sort-btn" onclick="toggleSort()">
+                    <i class="fas fa-sort"></i>
+                    <span>Urutkan</span>
+                </button>
             </div>
             
-            <button class="buy-button" id="buyButton" onclick="buyPackage()" disabled>
-                <span>Pilih Paket Terlebih Dahulu</span>
-            </button>
-        </div>
-
-        <!-- Loading -->
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <div>Memproses...</div>
-        </div>
-
-        <!-- Success Message -->
-        <div class="success-message" id="successMessage">
-            <div>✅ Pembelian berhasil!</div>
-            <div>Kuota akan aktif dalam 5 menit</div>
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Memuat paket...</div>
+            </div>
+            
+            <div id="packageList">
+                <!-- Packages will be loaded here -->
+            </div>
         </div>
 
         <!-- Bottom Navigation -->
         <div class="bottom-nav">
-            <div class="bottom-nav-content">
-                <a href="/" class="nav-item active">
-                    <div class="nav-icon">🏠</div>
-                    <div>Beranda</div>
+            <div class="nav-items">
+                <a href="#" class="nav-item active">
+                    <i class="fas fa-home"></i>
+                    <span>Beranda</span>
                 </a>
-                <a href="/admin" class="nav-item">
-                    <div class="nav-icon">⚙️</div>
-                    <div>Admin</div>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-list"></i>
+                    <span>Paket</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-history"></i>
+                    <span>Riwayat</span>
+                </a>
+                <a href="#" class="nav-item">
+                    <i class="fas fa-user"></i>
+                    <span>Profil</span>
                 </a>
             </div>
         </div>
     </div>
 
-    <script src="/assets/js/utils.js"></script>
-    <script src="/assets/js/api.js"></script>
-    <script src="/assets/js/main.js"></script>
+    <!-- Purchase Modal -->
+    <div class="modal" id="purchaseModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <h2 class="modal-title">Beli Paket</h2>
+            
+            <div class="selected-package" id="selectedPackageInfo">
+                <!-- Selected package info will be shown here -->
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Nomor Telepon</label>
+                <input type="tel" class="form-input" id="phoneNumber" placeholder="Masukkan nomor telepon">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Pilih Metode Pembayaran</label>
+                <div class="payment-methods">
+                    <div class="payment-method" onclick="selectPayment('qris')">
+                        <div class="payment-icon">
+                            <i class="fas fa-qrcode"></i>
+                        </div>
+                        <div class="payment-name">QRIS</div>
+                    </div>
+                    <div class="payment-method" onclick="selectPayment('dana')">
+                        <div class="payment-icon">
+                            <i class="fas fa-mobile-alt"></i>
+                        </div>
+                        <div class="payment-name">DANA</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="qris-image" id="qrisImage">
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ3aGl0ZSIvPgo8cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIiBmaWxsPSJibGFjayIvPgo8cmVjdCB4PSIzMCIgeT0iMzAiIHdpZHRoPSIxNDAiIGhlaWdodD0iMTQwIiBmaWxsPSJ3aGl0ZSIvPgo8cmVjdCB4PSI0MCIgeT0iNDAiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiBmaWxsPSJibGFjayIvPgo8cmVjdCB4PSI4MCIgeT0iODAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0id2hpdGUiLz4KPHRleHQgeD0iMTAwIiB5PSIxOTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iYmxhY2siPlNjYW4gUVJJUzwvdGV4dD4KPC9zdmc+" alt="QRIS Code">
+                <p style="margin-top: 10px; font-size: 12px; color: #666;">Scan QR Code untuk membayar</p>
+            </div>
+            
+            <button class="btn btn-primary" onclick="processPurchase()" style="width: 100%;">
+                Beli Sekarang
+            </button>
+        </div>
+    </div>
+
+    <!-- Package Detail Modal -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+            <h2 class="modal-title">Detail Paket</h2>
+            <div id="packageDetailContent">
+                <!-- Package details will be shown here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast">
+        <div class="toast-content">
+            <i class="fas fa-check-circle"></i>
+            <span id="toastMessage">Berhasil!</span>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
 </body>
 </html>
