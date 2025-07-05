@@ -1,6 +1,6 @@
 class API {
     // ✅ URL Google Apps Script Anda yang sudah benar
-    static BASE_URL = 'https://script.google.com/macros/s/AKfycbw9rZeB0kNgtIcS-TVxxN1cdG_0CGOFBopvMnCNAfH6R8dcO0y85OlzRoYF5NNhLx-J4g/exec';
+    static BASE_URL = 'https://script.google.com/macros/s/AKfycbzAmyrJZURrGlAtVCBfJrL_JG56a1lq4nQNeWq_pc68Rj-Pu7MvqAogMgdmhU6j82PLyA/exec';
     
     static async request(endpoint, method = 'GET', data = null) {
         const url = new URL(this.BASE_URL);
