@@ -82,4 +82,4 @@ class API {
 }
 
 // Configuration - Update this with your actual Google Apps Script URL
-API.BASE_URL = 'https://script.google.com/macros/s/YOUR_ACTUAL_SCRIPT_ID/exec';
+API.BASE_URL = 'https://script.google.com/macros/s/AKfycbzvG5UhV2VtUjl7mo9xa4-qMukmUb2LzsWVIx-P0P85TxLbCgY2Ao_PELU-oikhOXcjgA/exec';
