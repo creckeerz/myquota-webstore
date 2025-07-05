@@ -1,5 +1,5 @@
 class API {
-    static BASE_URL = 'https://script.google.com/macros/s/AKfycbwfhVXKZzRtGTld4XcWf1SGJqxtB-4c1G5gnXBpl9oy_U2HaDVjuRnNnMVK8_4AAeNTHw/exec';
+    static BASE_URL = 'https://script.google.com/macros/s/AKfycbx74Gisl47Gl5MgMSRJ5eqBge45Rm9UIySAbb4FEpyxKSSgp2xlBsXPYqQcEJvQu0Lc2w/exec';
     
     static async request(endpoint, method = 'GET', data = null) {
         const url = new URL(this.BASE_URL);
@@ -82,4 +82,4 @@ class API {
 }
 
 // Configuration - Update this with your actual Google Apps Script URL
-API.BASE_URL = 'https://script.google.com/macros/s/AKfycbwfhVXKZzRtGTld4XcWf1SGJqxtB-4c1G5gnXBpl9oy_U2HaDVjuRnNnMVK8_4AAeNTHw/exec';
+API.BASE_URL = 'https://script.google.com/macros/s/AKfycbx74Gisl47Gl5MgMSRJ5eqBge45Rm9UIySAbb4FEpyxKSSgp2xlBsXPYqQcEJvQu0Lc2w/exec';
