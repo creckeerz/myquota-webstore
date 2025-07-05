@@ -1,36 +1,33 @@
 class API {
     // ✅ URL Google Apps Script Anda
-    static BASE_URL = 'https://script.google.com/macros/s/AKfycbzvG5UhV2VtUjl7mo9xa4-qMukmUb2LzsWVIx-P0P85TxLbCgY2Ao_PELU-oikhOXcjgA/exec';
+    static BASE_URL = 'https://script.google.com/macros/s/AKfycbzb4jGhEYh6FRsLepy72Dq2RB3bXwlC6HhcYLgeiJ_95znlXZxKtX58N6cgGJrgObxQ1Q/exec';
     
     static async request(endpoint, method = 'GET', data = null) {
         try {
             console.log('🔄 API Request:', { endpoint, method, data });
             
-            // Untuk Google Apps Script, semua request harus menggunakan POST
-            const url = this.BASE_URL;
-            
-            // Prepare request body
-            const requestBody = {
-                path: endpoint,
-                method: method
-            };
-            
-            // Add data for non-GET requests
-            if (data && method !== 'GET') {
-                requestBody.data = data;
-            }
+            // Sesuaikan dengan format yang diharapkan Google Apps Script Anda
+            const url = new URL(this.BASE_URL);
+            url.searchParams.append('path', endpoint);
+            url.searchParams.append('method', method);
             
             const options = {
-                method: 'POST',
+                method: 'POST', // Selalu POST untuk Google Apps Script
                 headers: {
-                    'Content-Type': 'application/json',
+                    'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: JSON.stringify(requestBody),
-                // Prevent caching issues
                 cache: 'no-cache',
                 mode: 'cors'
             };
             
+            // Tambahkan data sebagai form data jika ada
+            if (data && method !== 'GET') {
+                const formData = new URLSearchParams();
+                formData.append('postData', JSON.stringify(data));
+                options.body = formData;
+            }
+            
+            console.log('📤 Request URL:', url.toString());
             console.log('📤 Request options:', options);
             
             const response = await fetch(url, options);
@@ -38,9 +35,8 @@ class API {
             
             // Handle redirect responses
             if (response.status === 302 || response.redirected) {
-                console.warn('⚠️ Redirect detected, this might indicate an authentication issue');
-                // For Google Apps Script, redirects usually mean authentication problems
-                throw new Error('Authentication required or script not properly deployed');
+                console.warn('⚠️ Redirect detected to:', response.url);
+                throw new Error('Script tidak dapat diakses. Periksa deployment dan permissions.');
             }
             
             if (!response.ok) {
@@ -51,18 +47,13 @@ class API {
             console.log('📋 Content-Type:', contentType);
             
             let result;
-            if (contentType && contentType.includes('application/json')) {
-                result = await response.json();
-            } else {
-                // Sometimes Google Apps Script returns HTML instead of JSON
+            try {
                 const text = await response.text();
-                console.log('📄 Response text:', text.substring(0, 200));
-                
-                try {
-                    result = JSON.parse(text);
-                } catch (e) {
-                    throw new Error('Invalid JSON response from server: ' + text.substring(0, 100));
-                }
+                console.log('📄 Raw response:', text.substring(0, 200) + '...');
+                result = JSON.parse(text);
+            } catch (parseError) {
+                console.error('❌ JSON parse error:', parseError);
+                throw new Error('Invalid JSON response from server');
             }
             
             console.log('✅ API Response:', result);
@@ -86,53 +77,10 @@ class API {
             if (error.message.includes('Failed to fetch')) {
                 throw new Error('Koneksi ke server gagal. Periksa koneksi internet Anda.');
             } else if (error.message.includes('302') || error.message.includes('redirect')) {
-                throw new Error('Masalah autentikasi atau deployment script. Periksa URL dan permissions.');
-            } else if (error.message.includes('Authentication required')) {
-                throw new Error('Script memerlukan autentikasi. Pastikan script sudah di-deploy dengan benar.');
+                throw new Error('Masalah deployment script. Pastikan script di-deploy sebagai web app dengan akses "Anyone".');
             } else {
                 throw new Error('Network error: ' + error.message);
             }
-        }
-    }
-    
-    // Alternative request method using URLSearchParams (fallback)
-    static async requestFormData(endpoint, method = 'GET', data = null) {
-        try {
-            console.log('🔄 API Request (FormData):', { endpoint, method, data });
-            
-            const url = this.BASE_URL;
-            const formData = new URLSearchParams();
-            
-            formData.append('path', endpoint);
-            formData.append('method', method);
-            
-            if (data && method !== 'GET') {
-                formData.append('data', JSON.stringify(data));
-            }
-            
-            const options = {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: formData,
-                cache: 'no-cache'
-            };
-            
-            const response = await fetch(url, options);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const result = await response.json();
-            console.log('✅ API Response (FormData):', result);
-            
-            return result;
-            
-        } catch (error) {
-            console.error('❌ API Error (FormData):', error);
-            throw error;
         }
     }
     
@@ -147,7 +95,7 @@ class API {
     
     // Packages
     static async getPackages(categorySlug = null) {
-        const endpoint = categorySlug ? `packages/${categorySlug}` : 'packages';
+        const endpoint = categorySlug ? `packages?category=${categorySlug}` : 'packages';
         return this.request(endpoint, 'GET');
     }
     
@@ -158,12 +106,12 @@ class API {
     
     static async updatePackage(id, packageData) {
         console.log('📝 Updating package:', id, packageData);
-        return this.request(`packages/${id}`, 'PUT', packageData);
+        return this.request(`packages?id=${id}`, 'PUT', packageData);
     }
     
     static async deletePackage(id) {
         console.log('🗑️ Deleting package:', id);
-        return this.request(`packages/${id}`, 'DELETE');
+        return this.request(`packages?id=${id}`, 'DELETE');
     }
     
     // Transactions
@@ -177,15 +125,15 @@ class API {
     
     // Authentication
     static async login(email, password) {
-        return this.request('auth/login', 'POST', { email, password });
+        return this.request('auth?action=login', 'POST', { email, password });
     }
     
     static async checkAuth(token) {
-        return this.request(`auth/check`, 'GET', { token });
+        return this.request(`auth?action=check&token=${token}`, 'GET');
     }
     
     static async logout() {
-        return this.request('auth/logout', 'POST');
+        return this.request('auth?action=logout', 'POST');
     }
 }
 
@@ -193,16 +141,7 @@ class API {
 API.testConnection = async function() {
     try {
         console.log('🧪 Testing API connection...');
-        
-        // Test dengan method yang berbeda jika yang pertama gagal
-        let result;
-        try {
-            result = await this.request('packages', 'GET');
-        } catch (error) {
-            console.log('⚠️ JSON request failed, trying FormData...');
-            result = await this.requestFormData('packages', 'GET');
-        }
-        
+        const result = await this.request('packages', 'GET');
         console.log('✅ API Connection successful:', result);
         return { success: true, data: result };
     } catch (error) {
@@ -223,35 +162,103 @@ API.testAuth = async function() {
     }
 };
 
+// Test create package
+API.testCreatePackage = async function() {
+    try {
+        console.log('📦 Testing package creation...');
+        const testPackage = {
+            name: 'Test Package',
+            category_id: 1,
+            quota: '10GB',
+            price: 50000,
+            validity: '30 hari',
+            description: 'Test package untuk debugging',
+            status: 'active',
+            is_popular: false
+        };
+        
+        const result = await this.createPackage(testPackage);
+        console.log('✅ Package creation test result:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Package creation test failed:', error);
+        return { success: false, error: error.message };
+    }
+};
+
 // Debug function untuk troubleshooting
 API.debug = async function() {
-    console.log('🔍 Starting API Debug...');
+    console.log('🔍 Starting comprehensive API debug...');
     
-    // Test basic connectivity
+    const results = {
+        basicFetch: null,
+        connection: null,
+        createPackage: null
+    };
+    
+    // Test 1: Basic fetch
     try {
+        console.log('🌐 Test 1: Basic fetch to script URL...');
         const response = await fetch(this.BASE_URL, { 
             method: 'GET',
             cache: 'no-cache'
         });
-        console.log('🌐 Basic fetch response:', {
+        results.basicFetch = {
+            success: true,
             status: response.status,
             statusText: response.statusText,
             redirected: response.redirected,
-            url: response.url,
+            finalUrl: response.url,
             headers: Object.fromEntries(response.headers.entries())
-        });
+        };
+        console.log('✅ Basic fetch successful:', results.basicFetch);
     } catch (error) {
-        console.error('🌐 Basic fetch failed:', error);
+        results.basicFetch = { success: false, error: error.message };
+        console.error('❌ Basic fetch failed:', error);
     }
     
-    // Test API methods
-    const testResults = {
-        connection: await this.testConnection(),
-        auth: await this.testAuth()
+    // Test 2: API connection
+    try {
+        console.log('🔗 Test 2: API connection test...');
+        results.connection = await this.testConnection();
+    } catch (error) {
+        results.connection = { success: false, error: error.message };
+    }
+    
+    // Test 3: Create package
+    try {
+        console.log('📦 Test 3: Create package test...');
+        results.createPackage = await this.testCreatePackage();
+    } catch (error) {
+        results.createPackage = { success: false, error: error.message };
+    }
+    
+    console.log('📊 Complete debug results:', results);
+    
+    // Generate summary
+    const summary = {
+        allTestsPassed: Object.values(results).every(r => r?.success),
+        recommendations: []
     };
     
-    console.log('📊 Debug results:', testResults);
-    return testResults;
+    if (!results.basicFetch?.success) {
+        summary.recommendations.push('Script URL tidak dapat diakses. Periksa deployment Google Apps Script.');
+    }
+    
+    if (results.basicFetch?.success && !results.connection?.success) {
+        summary.recommendations.push('Script dapat diakses tetapi endpoint tidak berfungsi. Periksa handleRequest function.');
+    }
+    
+    if (results.connection?.success && !results.createPackage?.success) {
+        summary.recommendations.push('GET request berhasil tetapi POST gagal. Periksa PackageService.handleRequest.');
+    }
+    
+    if (summary.allTestsPassed) {
+        summary.recommendations.push('Semua test berhasil! API siap digunakan.');
+    }
+    
+    console.log('📋 Debug summary:', summary);
+    return { results, summary };
 };
 
 // Auto-retry wrapper for critical operations
