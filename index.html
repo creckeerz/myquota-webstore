@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyQuota - Toko Kuota Online</title>
+    <meta name="description" content="Beli kuota internet murah dan cepat. Official XL, AXIS, Paket Harian, dan Perpanjangan Masa Aktif.">
+    <link rel="icon" href="/assets/images/favicon.ico">
+    <link rel="stylesheet" href="/assets/css/main.css">
+    <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🛒 MyQuota</h1>
+            <p>Toko Kuota Online Terpercaya</p>
+        </div>
+
+        <!-- Balance Card -->
+        <div class="balance-card">
+            <div class="balance-info">
+                <div>
+                    <div class="balance-amount">Saldo Anda</div>
+                    <div class="balance-number">0812-3456-7890</div>
+                </div>
+                <div>💳</div>
+            </div>
+            <div class="quota-status">
+                <strong>Status:</strong> Siap untuk isi kuota
+            </div>
+        </div>
+
+        <!-- Promo Banner -->
+        <div class="promo-banner">
+            <div class="promo-text">🔥 PROMO HARI INI! 🔥</div>
+            <div class="promo-subtext">Cashback 20% untuk pembelian paket 10GB ke atas!</div>
+        </div>
+
+        <!-- Category Tabs -->
+        <div class="nav-tabs" id="categoryTabs">
+            <!-- Categories will be loaded dynamically -->
+        </div>
+
+        <!-- Package List -->
+        <div class="content">
+            <div class="package-grid" id="packageGrid">
+                <!-- Packages will be loaded dynamically -->
+            </div>
+            
+            <button class="buy-button" id="buyButton" onclick="buyPackage()" disabled>
+                <span>Pilih Paket Terlebih Dahulu</span>
+            </button>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>Memproses...</div>
+        </div>
+
+        <!-- Success Message -->
+        <div class="success-message" id="successMessage">
+            <div>✅ Pembelian berhasil!</div>
+            <div>Kuota akan aktif dalam 5 menit</div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <div class="bottom-nav-content">
+                <a href="/" class="nav-item active">
+                    <div class="nav-icon">🏠</div>
+                    <div>Beranda</div>
+                </a>
+                <a href="/admin" class="nav-item">
+                    <div class="nav-icon">⚙️</div>
+                    <div>Admin</div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script src="/assets/js/utils.js"></script>
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/main.js"></script>
+</body>
+</html>
