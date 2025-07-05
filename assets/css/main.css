@@ -482,3 +482,396 @@ body {
 .toast-warning {
     background: linear-gradient(135deg, #fdcb6e, #e17055);
 }
+
+
+/* Payment Modal Styles */
+.payment-modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.payment-modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+}
+
+.payment-modal-content {
+    background: white;
+    padding: 0;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 400px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: modalSlideUp 0.3s ease;
+    position: relative;
+}
+
+@keyframes modalSlideUp {
+    from { transform: translateY(50px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Payment Header */
+.payment-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 25px;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.payment-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.payment-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 24px;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+}
+
+.payment-close:hover {
+    background: rgba(255,255,255,0.3);
+    transform: rotate(90deg);
+}
+
+/* Payment Summary */
+.payment-summary {
+    padding: 25px;
+    border-bottom: 1px solid #f1f2f6;
+    text-align: center;
+}
+
+.payment-item {
+    font-size: 16px;
+    margin-bottom: 10px;
+}
+
+.payment-amount {
+    font-size: 24px;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 5px;
+}
+
+.payment-phone {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Payment Methods */
+.payment-methods {
+    padding: 25px;
+}
+
+.payment-method {
+    width: 100%;
+    padding: 20px;
+    border: 2px solid #e9ecef;
+    border-radius: 15px;
+    background: white;
+    cursor: pointer;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.payment-method:hover {
+    border-color: #667eea;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.payment-method:last-child {
+    margin-bottom: 0;
+}
+
+/* DANA Button */
+.dana-btn:hover {
+    border-color: #1e88e5;
+    background: linear-gradient(135deg, rgba(30, 136, 229, 0.1), rgba(25, 118, 210, 0.1));
+}
+
+/* QRIS Button */
+.qris-btn:hover {
+    border-color: #43a047;
+    background: linear-gradient(135deg, rgba(67, 160, 71, 0.1), rgba(56, 142, 60, 0.1));
+}
+
+.payment-icon {
+    font-size: 32px;
+    width: 50px;
+    text-align: center;
+}
+
+.payment-info {
+    flex: 1;
+}
+
+.payment-name {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.payment-desc {
+    font-size: 12px;
+    color: #666;
+}
+
+.payment-arrow {
+    font-size: 20px;
+    color: #667eea;
+    transition: transform 0.3s ease;
+}
+
+.payment-method:hover .payment-arrow {
+    transform: translateX(5px);
+}
+
+.payment-footer {
+    padding: 0 25px 25px;
+    text-align: center;
+    color: #666;
+}
+
+/* DANA Redirect Modal */
+.dana-redirect {
+    text-align: center;
+}
+
+.dana-header {
+    background: linear-gradient(135deg, #1e88e5, #1976d2);
+    color: white;
+    padding: 30px;
+    border-radius: 20px 20px 0 0;
+}
+
+.dana-logo {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.dana-content {
+    padding: 30px;
+}
+
+.dana-content p {
+    margin-bottom: 20px;
+    color: #666;
+}
+
+.dana-amount {
+    font-size: 28px;
+    font-weight: bold;
+    color: #1e88e5;
+    margin-bottom: 20px;
+}
+
+.dana-actions {
+    padding: 0 30px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.btn-dana-open {
+    background: linear-gradient(135deg, #1e88e5, #1976d2);
+    color: white;
+    border: none;
+    padding: 15px 25px;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.btn-dana-open:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(30, 136, 229, 0.4);
+}
+
+.btn-dana-manual {
+    background: transparent;
+    color: #1e88e5;
+    border: 2px solid #1e88e5;
+    padding: 12px 25px;
+    border-radius: 25px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.btn-dana-manual:hover {
+    background: #1e88e5;
+    color: white;
+}
+
+.dana-footer {
+    padding: 0 30px 30px;
+    color: #666;
+}
+
+/* QRIS Modal */
+.qris-modal {
+    text-align: center;
+}
+
+.qris-header {
+    background: linear-gradient(135deg, #43a047, #388e3c);
+    color: white;
+    padding: 25px;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.qris-logo {
+    font-size: 24px;
+    margin-right: 10px;
+}
+
+.qris-content {
+    padding: 30px;
+}
+
+.qris-amount {
+    font-size: 24px;
+    font-weight: bold;
+    color: #43a047;
+    margin-bottom: 5px;
+}
+
+.qris-package {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 25px;
+}
+
+.qr-code-container {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 25px;
+}
+
+.qr-code-image {
+    width: 250px;
+    height: 250px;
+    border: 3px solid #43a047;
+    border-radius: 15px;
+    background: white;
+    display: none;
+}
+
+.qr-loading {
+    width: 250px;
+    height: 250px;
+    border: 3px solid #43a047;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f8f9fa;
+}
+
+.qris-instructions {
+    text-align: left;
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.qris-instructions h4 {
+    margin-bottom: 15px;
+    color: #43a047;
+}
+
+.qris-instructions ol {
+    margin-left: 20px;
+}
+
+.qris-instructions li {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.qris-footer {
+    padding: 0 30px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.qris-timer {
+    color: #e17055;
+    font-weight: bold;
+}
+
+.btn-refresh-qr {
+    background: #43a047;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.btn-refresh-qr:hover {
+    background: #388e3c;
+}
+
+/* Success Modal */
+.success-modal {
+    text-align: center;
+}
+
+.success-header {
+    background: linear-gradient(135deg, #00b894, #00a085);
+    color: white;
+    padding: 30px;
+    border-radius: 20px 20px 0 0;
+}
+
+.success-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.success-content {
+    padding: 30px;
+}
+
+.success
