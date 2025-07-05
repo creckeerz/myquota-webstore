@@ -1,5 +1,5 @@
 class API {
-    // ✅ URL Google Apps Script Anda
+    // ✅ URL Google Apps Script Anda yang sudah benar
     static BASE_URL = 'https://script.google.com/macros/s/AKfycbx74Gisl47Gl5MgMSRJ5eqBge45Rm9UIySAbb4FEpyxKSSgp2xlBsXPYqQcEJvQu0Lc2w/exec';
     
     static async request(endpoint, method = 'GET', data = null) {
@@ -25,6 +25,11 @@ class API {
         try {
             console.log('🔄 API Request:', endpoint, method, data);
             const response = await fetch(url, options);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const result = await response.json();
             console.log('✅ API Response:', result);
             
