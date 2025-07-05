@@ -4,8 +4,6 @@ class AdminPanel {
         this.categories = [];
         this.packages = [];
         this.editingPackage = null;
-        this.apiRetryCount = 0;
-        this.maxRetries = 3;
         
         this.init();
     }
@@ -35,8 +33,24 @@ class AdminPanel {
         if (authCheck) authCheck.style.display = 'block';
         
         // For demo purposes, skip authentication
+        // In production, implement proper auth check
         console.log('🔐 Skipping auth check for demo');
         return true;
+        
+        /* Uncomment for real authentication:
+        if (!Auth.isAuthenticated()) {
+            window.location.href = '/login';
+            return false;
+        }
+        
+        const isValid = await Auth.checkAuthStatus();
+        if (!isValid) {
+            window.location.href = '/login';
+            return false;
+        }
+        
+        return true;
+        */
     }
     
     hideAuthCheck() {
@@ -76,7 +90,7 @@ class AdminPanel {
     async loadCategories() {
         try {
             console.log('📂 Loading categories...');
-            const result = await this.safeApiCall(() => API.getCategories());
+            const result = await API.getCategories();
             this.categories = result.data || result || this.getDefaultCategories();
             this.renderCategoryTabs();
             this.populateCategorySelect();
@@ -85,7 +99,6 @@ class AdminPanel {
             console.error('❌ Failed to load categories:', error);
             this.categories = this.getDefaultCategories();
             this.renderCategoryTabs();
-            this.populateCategorySelect();
         }
     }
     
@@ -101,7 +114,7 @@ class AdminPanel {
     async loadPackages(categorySlug = null) {
         try {
             console.log('📦 Loading packages for category:', categorySlug || this.currentCategory);
-            const result = await this.safeApiCall(() => API.getPackages(categorySlug || this.currentCategory));
+            const result = await API.getPackages(categorySlug || this.currentCategory);
             this.packages = result.data || result || [];
             this.renderPackageTable();
             console.log('✅ Packages loaded:', this.packages.length);
@@ -109,36 +122,7 @@ class AdminPanel {
             console.error('❌ Failed to load packages:', error);
             this.packages = [];
             this.renderPackageTable();
-            // Show user-friendly error
-            this.showApiError('Gagal memuat paket. Silakan coba lagi.');
         }
-    }
-    
-    // Enhanced API call with retry mechanism
-    async safeApiCall(apiFunction, retryCount = 0) {
-        try {
-            const result = await apiFunction();
-            this.apiRetryCount = 0; // Reset retry count on success
-            return result;
-        } catch (error) {
-            console.error(`API call failed (attempt ${retryCount + 1}):`, error);
-            
-            if (retryCount < this.maxRetries) {
-                console.log(`Retrying in ${(retryCount + 1) * 1000}ms...`);
-                await this.delay((retryCount + 1) * 1000);
-                return this.safeApiCall(apiFunction, retryCount + 1);
-            }
-            
-            throw error;
-        }
-    }
-    
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-    
-    showApiError(message) {
-        Utils.showToast(message, 'error');
     }
     
     renderCategoryTabs() {
@@ -215,13 +199,13 @@ class AdminPanel {
     async updateStats() {
         try {
             console.log('📈 Updating stats...');
-            const result = await this.safeApiCall(() => API.getPackages());
-            const packages = result.data || result || [];
+            const allPackages = await API.getPackages();
+            const packages = allPackages.data || allPackages || [];
             
             const stats = {
                 total: packages.length,
                 active: packages.filter(pkg => pkg.status === 'active').length,
-                transactions: Math.floor(Math.random() * 1000) + 100,
+                transactions: Math.floor(Math.random() * 1000) + 100, // Mock data
                 revenue: packages.reduce((sum, pkg) => sum + ((pkg.price || 0) * Math.floor(Math.random() * 5)), 0)
             };
             
@@ -245,7 +229,7 @@ class AdminPanel {
             // Set default values
             const defaultStats = { total: 0, active: 0, transactions: 0, revenue: 0 };
             Object.keys(defaultStats).forEach(key => {
-                const element = document.getElementById(key === 'revenue' ? 'revenue' : key === 'transactions' ? 'totalTransactions' : key + 'Packages');
+                const element = document.getElementById(key === 'revenue' ? 'revenue' : key + 'Packages');
                 if (element) element.textContent = key === 'revenue' ? 'Rp 0' : defaultStats[key];
             });
         }
@@ -272,7 +256,6 @@ class AdminPanel {
         const pkg = this.packages.find(p => p.id == packageId);
         if (!pkg) {
             console.error('Package not found:', packageId);
-            Utils.showToast('Paket tidak ditemukan', 'error');
             return;
         }
         
@@ -310,7 +293,7 @@ class AdminPanel {
         if (!confirm('Apakah Anda yakin ingin menghapus paket ini?')) return;
         
         try {
-            const result = await this.safeApiCall(() => API.deletePackage(packageId));
+            const result = await API.deletePackage(packageId);
             if (result.success) {
                 Utils.showToast('Paket berhasil dihapus', 'success');
                 await this.loadPackages();
@@ -391,47 +374,23 @@ class AdminPanel {
     async savePackage() {
         console.log('💾 Saving package...');
         
-        // Validate form data
-        const packageName = document.getElementById('packageName')?.value?.trim();
-        const packagePrice = document.getElementById('packagePrice')?.value;
-        
-        if (!packageName) {
-            Utils.showToast('Nama paket wajib diisi', 'error');
-            return;
-        }
-        
-        if (!packagePrice || isNaN(packagePrice) || parseInt(packagePrice) <= 0) {
-            Utils.showToast('Harga paket harus berupa angka yang valid', 'error');
-            return;
-        }
-        
         const packageData = {
-            name: packageName,
+            name: document.getElementById('packageName')?.value || '',
             category_id: this.getCategoryIdBySlug(document.getElementById('packageCategory')?.value || this.currentCategory),
-            quota: document.getElementById('packageQuota')?.value?.trim() || '',
-            price: parseInt(packagePrice),
-            validity: document.getElementById('packageValidity')?.value?.trim() || '',
-            description: document.getElementById('packageDescription')?.value?.trim() || '',
+            quota: document.getElementById('packageQuota')?.value || '',
+            price: parseInt(document.getElementById('packagePrice')?.value || 0),
+            validity: document.getElementById('packageValidity')?.value || '',
+            description: document.getElementById('packageDescription')?.value || '',
             status: document.getElementById('packageStatus')?.value || 'active',
             is_popular: document.getElementById('packagePopular')?.checked || false
         };
         
-        console.log('Package data to save:', packageData);
-        
         try {
-            // Show loading state
-            const submitBtn = document.querySelector('#packageForm button[type="submit"]');
-            const originalText = submitBtn?.textContent;
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.textContent = 'Menyimpan...';
-            }
-            
             let result;
             if (this.editingPackage) {
-                result = await this.safeApiCall(() => API.updatePackage(this.editingPackage.id, packageData));
+                result = await API.updatePackage(this.editingPackage.id, packageData);
             } else {
-                result = await this.safeApiCall(() => API.createPackage(packageData));
+                result = await API.createPackage(packageData);
             }
             
             if (result.success) {
@@ -444,24 +403,7 @@ class AdminPanel {
             }
         } catch (error) {
             console.error('❌ Save failed:', error);
-            let errorMessage = 'Gagal menyimpan paket';
-            
-            if (error.message.includes('Network')) {
-                errorMessage = 'Koneksi bermasalah. Silakan periksa koneksi internet Anda.';
-            } else if (error.message.includes('not found')) {
-                errorMessage = 'Endpoint API tidak ditemukan. Silakan hubungi administrator.';
-            } else if (error.message.includes('302')) {
-                errorMessage = 'Terjadi pengalihan yang tidak diharapkan. Silakan coba lagi.';
-            }
-            
-            Utils.showToast(errorMessage + ': ' + error.message, 'error');
-        } finally {
-            // Restore button state
-            const submitBtn = document.querySelector('#packageForm button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText || 'Simpan';
-            }
+            Utils.showToast('Gagal menyimpan paket: ' + error.message, 'error');
         }
     }
     
@@ -472,7 +414,12 @@ class AdminPanel {
     
     logout() {
         console.log('👋 Logging out...');
+        // For demo, just redirect
         window.location.href = '/login';
+        
+        /* Uncomment for real authentication:
+        Auth.logout();
+        */
     }
 }
 
