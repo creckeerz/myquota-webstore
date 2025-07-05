@@ -1,3 +1,500 @@
+/* Payment Modal Styles */
+.payment-modal {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(10px);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.payment-modal.show {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+}
+
+.payment-modal-content {
+    background: white;
+    padding: 0;
+    border-radius: 20px;
+    width: 90%;
+    max-width: 420px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 25px 80px rgba(0,0,0,0.4);
+    animation: modalSlideUp 0.4s ease;
+    position: relative;
+}
+
+@keyframes modalSlideUp {
+    from { transform: translateY(50px) scale(0.95); opacity: 0; }
+    to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* Payment Header */
+.payment-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 25px;
+    border-radius: 20px 20px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.payment-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.payment-close {
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    font-size: 24px;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.payment-close:hover {
+    background: rgba(255,255,255,0.3);
+    transform: rotate(90deg);
+}
+
+/* Payment Summary */
+.payment-summary {
+    padding: 25px;
+    border-bottom: 1px solid #f1f2f6;
+    text-align: center;
+}
+
+.payment-item {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #2f3542;
+}
+
+.payment-amount {
+    font-size: 28px;
+    font-weight: bold;
+    color: #667eea;
+    margin-bottom: 8px;
+}
+
+.payment-phone {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Payment Methods */
+.payment-methods {
+    padding: 25px;
+}
+
+.payment-method {
+    width: 100%;
+    padding: 20px;
+    border: 2px solid #e9ecef;
+    border-radius: 15px;
+    background: white;
+    cursor: pointer;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.payment-method:hover {
+    border-color: #667eea;
+    transform: translateY(-3px);
+    box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+}
+
+.payment-method:last-child {
+    margin-bottom: 0;
+}
+
+/* QRIS Button */
+.qris-btn:hover {
+    border-color: #43a047;
+    background: linear-gradient(135deg, rgba(67, 160, 71, 0.1), rgba(56, 142, 60, 0.1));
+}
+
+/* DANA Button */
+.dana-btn:hover {
+    border-color: #1e88e5;
+    background: linear-gradient(135deg, rgba(30, 136, 229, 0.1), rgba(25, 118, 210, 0.1));
+}
+
+.payment-icon {
+    font-size: 32px;
+    width: 50px;
+    text-align: center;
+}
+
+.payment-info {
+    flex: 1;
+}
+
+.payment-name {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.payment-desc {
+    font-size: 12px;
+    color: #666;
+}
+
+.payment-arrow {
+    font-size: 20px;
+    color: #667eea;
+    transition: transform 0.3s ease;
+}
+
+.payment-method:hover .payment-arrow {
+    transform: translateX(5px);
+}
+
+.payment-footer {
+    padding: 0 25px 25px;
+    text-align: center;
+    color: #666;
+}
+
+/* QRIS Modal */
+.qris-modal .qris-header {
+    background: linear-gradient(135deg, #43a047, #388e3c);
+}
+
+.qris-logo {
+    font-size: 24px;
+    margin-right: 10px;
+}
+
+.qris-content {
+    padding: 30px;
+    text-align: center;
+}
+
+.qris-amount {
+    font-size: 24px;
+    font-weight: bold;
+    color: #43a047;
+    margin-bottom: 5px;
+}
+
+.qris-package {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 25px;
+}
+
+.qr-code-container {
+    margin: 25px 0;
+}
+
+.qr-code-image {
+    width: 250px;
+    height: 250px;
+    border: 3px solid #43a047;
+    border-radius: 15px;
+    background: white;
+    padding: 10px;
+}
+
+.qris-instructions {
+    text-align: left;
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+
+.qris-instructions h4 {
+    margin-bottom: 15px;
+    color: #43a047;
+    text-align: center;
+}
+
+.qris-instructions ol {
+    margin-left: 0;
+    padding-left: 20px;
+}
+
+.qris-instructions li {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.transaction-info {
+    background: rgba(102, 126, 234, 0.1);
+    padding: 15px;
+    border-radius: 10px;
+    margin-top: 20px;
+    text-align: center;
+}
+
+.qris-footer {
+    padding: 20px 30px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid #f1f2f6;
+}
+
+.qris-timer {
+    color: #e17055;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.btn-confirm-payment {
+    background: linear-gradient(135deg, #00b894, #00a085);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 25px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.btn-confirm-payment:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 184, 148, 0.4);
+}
+
+/* DANA Modal */
+.dana-modal .dana-header {
+    background: linear-gradient(135deg, #1e88e5, #1976d2);
+}
+
+.dana-logo {
+    font-size: 24px;
+    margin-right: 10px;
+}
+
+.dana-content {
+    padding: 30px;
+    text-align: center;
+}
+
+.dana-amount {
+    font-size: 24px;
+    font-weight: bold;
+    color: #1e88e5;
+    margin-bottom: 5px;
+}
+
+.dana-package {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 25px;
+}
+
+.dana-number-container {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 15px;
+    margin: 20px 0;
+    border: 2px solid #1e88e5;
+}
+
+.dana-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.dana-number {
+    font-size: 24px;
+    font-weight: bold;
+    color: #1e88e5;
+    margin-bottom: 15px;
+    font-family: 'Courier New', monospace;
+}
+
+.btn-copy-number {
+    background: #1e88e5;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.btn-copy-number:hover {
+    background: #1976d2;
+}
+
+.dana-instructions {
+    text-align: left;
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+
+.dana-instructions h4 {
+    margin-bottom: 15px;
+    color: #1e88e5;
+    text-align: center;
+}
+
+.dana-instructions ol {
+    margin-left: 0;
+    padding-left: 20px;
+}
+
+.dana-instructions li {
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.dana-footer {
+    padding: 20px 30px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    border-top: 1px solid #f1f2f6;
+}
+
+.btn-open-dana {
+    background: linear-gradient(135deg, #1e88e5, #1976d2);
+    color: white;
+    border: none;
+    padding: 15px 25px;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.btn-open-dana:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(30, 136, 229, 0.4);
+}
+
+/* Success Modal */
+.success-modal .success-header {
+    background: linear-gradient(135deg, #00b894, #00a085);
+}
+
+.success-icon {
+    font-size: 48px;
+    margin-bottom: 15px;
+}
+
+.success-content {
+    padding: 30px;
+    text-align: center;
+}
+
+.success-package {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.success-amount {
+    font-size: 24px;
+    color: #00b894;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.success-phone {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.success-message {
+    background: rgba(0, 184, 148, 0.1);
+    color: #00b894;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+}
+
+.success-message p {
+    margin-bottom: 10px;
+}
+
+.transaction-id {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 5px;
+    font-family: 'Courier New', monospace;
+}
+
+.success-actions {
+    padding: 0 30px 30px;
+}
+
+.btn-success-ok {
+    background: linear-gradient(135deg, #00b894, #00a085);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    transition: transform 0.3s ease;
+}
+
+.btn-success-ok:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0, 184, 148, 0.4);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .payment-modal-content {
+        width: 95%;
+        margin: 20px;
+    }
+    
+    .qr-code-image {
+        width: 200px;
+        height: 200px;
+    }
+    
+    .dana-footer {
+        padding: 15px 20px 20px;
+    }
+    
+    .qris-footer {
+        flex-direction: column;
+        gap: 15px;
+        align-items: center;
+    }
+}
+
+
 /* MyQuota - Main Styles */
 * {
     margin: 0;
