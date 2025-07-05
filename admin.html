@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - MyQuota</title>
+    <link rel="icon" href="/assets/images/favicon.ico">
+    <link rel="stylesheet" href="/assets/css/admin.css">
+    <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+    <!-- Check if user is authenticated -->
+    <div id="authCheck" class="loading">
+        <div class="spinner"></div>
+        <div>Checking authentication...</div>
+    </div>
+
+    <!-- Admin Panel Content -->
+    <div id="adminPanel" style="display: none;">
+        <div class="admin-container">
+            <!-- Header -->
+            <div class="header">
+                <div class="header-content">
+                    <h1>🛠️ Panel Admin MyQuota</h1>
+                    <div class="header-actions">
+                        <span id="adminEmail">admin@myquota.com</span>
+                        <button class="btn btn-secondary" onclick="logout()">Logout</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalPackages">-</div>
+                    <div class="stat-label">Total Paket</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activePackages">-</div>
+                    <div class="stat-label">Paket Aktif</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalTransactions">-</div>
+                    <div class="stat-label">Transaksi</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="revenue">-</div>
+                    <div class="stat-label">Pendapatan</div>
+                </div>
+            </div>
+
+            <!-- Category Tabs -->
+            <div class="nav-tabs" id="categoryTabs">
+                <!-- Categories will be loaded dynamically -->
+            </div>
+
+            <!-- Content Panel -->
+            <div class="content-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title" id="categoryTitle">Loading...</h2>
+                    <button class="btn btn-primary" onclick="openAddModal()">
+                        ➕ Tambah Paket Baru
+                    </button>
+                </div>
+
+                <!-- Search & Filter -->
+                <div class="search-box">
+                    <input type="text" class="search-input" placeholder="Cari paket..." id="searchInput">
+                    <select class="form-select" id="statusFilter">
+                        <option value="">Semua Status</option>
+                        <option value="active">Aktif</option>
+                        <option value="inactive">Tidak Aktif</option>
+                    </select>
+                </div>
+
+                <!-- Package Table -->
+                <div id="packageTableContainer">
+                    <table class="data-table" id="packageTable">
+                        <thead>
+                            <tr>
+                                <th>Nama Paket</th>
+                                <th>Kuota</th>
+                                <th>Harga</th>
+                                <th>Masa Aktif</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="packageTableBody">
+                            <!-- Data will be loaded dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Package Modal -->
+    <div id="packageModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">Tambah Paket Baru</h3>
+                <button class="close" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="packageForm">
+                <input type="hidden" id="packageId">
+                
+                <div class="form-group">
+                    <label class="form-label">Nama Paket</label>
+                    <input type="text" class="form-input" id="packageName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Kategori</label>
+                    <select class="form-select" id="packageCategory" required>
+                        <!-- Options will be loaded dynamically -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Kuota</label>
+                    <input type="text" class="form-input" id="packageQuota" placeholder="Contoh: 3GB, 500MB" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Harga (Rp)</label>
+                    <input type="number" class="form-input" id="packagePrice" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Masa Aktif</label>
+                    <input type="text" class="form-input" id="packageValidity" placeholder="Contoh: 30 hari" required>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Deskripsi</label>
+                    <textarea class="form-textarea" id="packageDescription"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="packageStatus">
+                        <option value="active">Aktif</option>
+                        <option value="inactive">Tidak Aktif</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">
+                        <input type="checkbox" id="packagePopular">
+                        Tandai sebagai paket populer
+                    </label>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Batal</button>
+                    <button type="submit" class="btn btn-primary">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <script src="/assets/js/utils.js"></script>
+    <script src="/assets/js/api.js"></script>
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/admin.js"></script>
+</body>
+</html>
