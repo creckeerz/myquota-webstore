@@ -152,7 +152,9 @@ class MyQuotaAPI {
 // =================== GLOBAL API INSTANCE ===================
 const API = new MyQuotaAPI(API_CONFIG.APPS_SCRIPT_URL);
 
-// =================== GLOBAL VARIABLES ===================
+// =================== FRONTEND SCRIPT - GOOGLE SHEETS ===================
+
+// Global variables
 let categories = [];
 let packages = [];
 let settings = {};
@@ -163,110 +165,71 @@ let currentSort = 'price';
 let sortOrder = 'asc';
 let searchQuery = '';
 
-// =================== MAIN APPLICATION ===================
+console.log('🚀 MyQuota Frontend initializing with Google Sheets API...');
 
-// Initialize app
+// =================== INITIALIZATION ===================
+
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📱 DOM Content Loaded - Initializing app...');
+    console.log('📱 DOM loaded, initializing app...');
     initializeApp();
 });
 
-// Initialize application
 async function initializeApp() {
-    console.log('🚀 Starting app initialization...');
-    showLoading(true);
-    
-    // Always load demo data first for immediate UI
-    await loadDemoData();
-    setupEventListeners();
-    renderCategories();
-    renderPackages();
-    showLoading(false);
-    
-    // Then try to load real data in background
-    tryLoadRealData();
-    
-    // Add UI enhancements
-    setTimeout(() => {
-        addConnectionStatusIndicator();
-        addRefreshButton();
-    }, 1000);
-    
-    console.log('✅ App initialized with demo data');
-}
-
-// Try to load real data in background
-async function tryLoadRealData() {
     try {
-        console.log('🔄 Attempting to load real data from API...');
+        console.log('🔄 Starting app initialization...');
+        showLoading(true);
         
-        // Test API connection first
-        await testAPIConnection();
-        
-        // Load real data
-        await loadDataFromAPI();
-        
-        // Re-render with real data
+        // Load demo data first for immediate UI
+        loadDemoData();
+        setupEventListeners();
         renderCategories();
         renderPackages();
         
-        showToast('✅ Data real berhasil dimuat dari server!', 'success');
-        updateConnectionStatus('connected');
+        // Then try to load real data from Google Sheets
+        await tryLoadRealData();
+        
+        // Add UI enhancements
+        setTimeout(() => {
+            addConnectionStatusIndicator();
+            addRefreshButton();
+        }, 1000);
+        
+        console.log('✅ App initialized successfully');
         
     } catch (error) {
-        console.error('❌ Failed to load real data:', error);
-        showToast('⚠️ Menggunakan data demo (tidak terhubung ke server)', 'warning');
-        updateConnectionStatus('disconnected');
+        console.error('❌ Error during initialization:', error);
+        showToast('Error loading app: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
     }
 }
 
-// Test API connection
-async function testAPIConnection() {
+// Try to load real data from Google Sheets
+async function tryLoadRealData() {
     try {
-        console.log('🔍 Testing connection to:', API_CONFIG.APPS_SCRIPT_URL);
-        const healthCheck = await API.healthCheck();
-        console.log('✅ API Health Check:', healthCheck.message);
-        return true;
-    } catch (error) {
-        console.error('❌ API Connection failed:', error);
-        throw error;
-    }
-}
-
-// Load data from Google Apps Script
-async function loadDataFromAPI() {
-    try {
-        console.log('🔄 Loading data from API...');
+        console.log('🔄 Attempting to load real data from Google Sheets...');
         
-        // Load categories, packages, and settings with timeout
-        const promises = [
-            Promise.race([
-                API.getCategories(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-            ]),
-            Promise.race([
-                API.getPackages(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-            ]),
-            Promise.race([
-                API.getSettings(),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
-            ])
-        ];
-        
-        const [categoriesResult, packagesResult, settingsResult] = await Promise.allSettled(promises);
+        // Load data using DataService
+        const [categoriesData, packagesData, settingsData] = await Promise.allSettled([
+            DataService.getCategories(),
+            DataService.getPackages(),
+            DataService.getSettings()
+        ]);
         
         // Update data if successful
-        if (categoriesResult.status === 'fulfilled' && categoriesResult.value.data) {
-            categories = categoriesResult.value.data;
+        if (categoriesData.status === 'fulfilled') {
+            categories = categoriesData.value;
+            console.log('✅ Categories loaded from Google Sheets:', categories.length);
         }
         
-        if (packagesResult.status === 'fulfilled' && packagesResult.value.data) {
-            packages = packagesResult.value.data;
+        if (packagesData.status === 'fulfilled') {
+            packages = packagesData.value;
+            console.log('✅ Packages loaded from Google Sheets:', packages.length);
         }
         
-        if (settingsResult.status === 'fulfilled' && settingsResult.value.data) {
-            settings = settingsResult.value.data;
+        if (settingsData.status === 'fulfilled') {
+            settings = settingsData.value;
+            console.log('✅ Settings loaded from Google Sheets');
             
             // Update payment settings if available
             if (settings.qris_image_url) {
@@ -274,20 +237,22 @@ async function loadDataFromAPI() {
             }
         }
         
-        console.log('✅ Data loaded from API:', { 
-            categories: categories.length, 
-            packages: packages.length,
-            settings: Object.keys(settings).length
-        });
+        // Re-render with real data
+        renderCategories();
+        renderPackages();
+        
+        showToast('✅ Data berhasil dimuat dari Google Sheets!', 'success');
+        updateConnectionStatus('connected');
         
     } catch (error) {
-        console.error('❌ Error loading data from API:', error);
-        throw error;
+        console.error('❌ Failed to load real data:', error);
+        showToast('⚠️ Menggunakan data demo (tidak terhubung ke Google Sheets)', 'warning');
+        updateConnectionStatus('disconnected');
     }
 }
 
 // Load demo data (always available)
-async function loadDemoData() {
+function loadDemoData() {
     console.log('📋 Loading demo data...');
     
     categories = [
@@ -657,7 +622,7 @@ function selectPayment(method) {
     }
 }
 
-// Process purchase - Modified for offline mode
+// Process purchase - Google Sheets integration
 async function processPurchase() {
     const phoneNumber = document.getElementById('phoneNumber').value;
     
@@ -699,17 +664,18 @@ async function processPurchase() {
         };
         
         try {
-            // Try to save to backend
-            const transactionResult = await API.addTransaction(transactionData);
-            console.log('✅ Transaction saved to backend:', transactionResult);
-            showToast('✅ Transaksi berhasil disimpan ke database!', 'success');
+            // Try to save to Google Sheets
+            console.log('💾 Saving transaction to Google Sheets...');
+            const result = await DataService.addTransaction(transactionData);
+            console.log('✅ Transaction saved to Google Sheets:', result);
+            showToast('✅ Transaksi berhasil disimpan!', 'success');
             
             // Send WhatsApp notification to admin
-            if (transactionResult && transactionResult.data) {
-                sendWhatsAppNotification(transactionData, transactionResult.data.transaction_id);
+            if (result && result.transaction_id) {
+                sendWhatsAppNotification(transactionData, result.transaction_id);
             }
         } catch (apiError) {
-            console.log('⚠️ API unavailable, processing offline:', apiError.message);
+            console.log('⚠️ Google Sheets unavailable, processing offline:', apiError.message);
             showToast('📝 Transaksi diproses secara offline', 'warning');
             
             // Generate local transaction ID
@@ -765,7 +731,7 @@ function sendWhatsAppNotification(transactionData, transactionId) {
 🔗 *ID:* ${transactionId}
 ⏰ *Waktu:* ${new Date().toLocaleString('id-ID')}
 
-Silakan cek panel admin untuk approve transaksi.
+Silakan cek Google Sheets untuk approve transaksi.
         `.trim();
         
         const whatsappUrl = `https://wa.me/${adminWhatsApp}?text=${encodeURIComponent(message)}`;
@@ -787,6 +753,11 @@ async function refreshData() {
     try {
         console.log('🔄 Manual refresh triggered...');
         showLoading(true);
+        
+        // Clear cache
+        CacheManager.clear();
+        
+        // Reload data
         await tryLoadRealData();
     } catch (error) {
         console.error('❌ Error refreshing data:', error);
@@ -802,7 +773,7 @@ function updateConnectionStatus(status) {
     if (indicator) {
         if (status === 'connected') {
             indicator.style.background = '#28a745';
-            indicator.textContent = '🟢 Server';
+            indicator.textContent = '🟢 Google Sheets';
         } else {
             indicator.style.background = '#dc3545';
             indicator.textContent = '🔴 Demo';
@@ -910,7 +881,7 @@ function addConnectionStatusIndicator() {
     indicator.onclick = () => {
         refreshData();
     };
-    indicator.title = 'Klik untuk refresh data';
+    indicator.title = 'Klik untuk refresh data dari Google Sheets';
     document.body.appendChild(indicator);
 }
 
@@ -922,7 +893,7 @@ function addRefreshButton() {
         refreshBtn.className = 'refresh-btn';
         refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
         refreshBtn.onclick = refreshData;
-        refreshBtn.title = 'Refresh data dari server';
+        refreshBtn.title = 'Refresh data dari Google Sheets';
         refreshBtn.style.cssText = `
             position: absolute;
             top: 10px;
@@ -973,3 +944,5 @@ window.toggleFilter = toggleFilter;
 window.closeModal = closeModal;
 window.closeDetailModal = closeDetailModal;
 window.refreshData = refreshData;
+
+console.log('✅ Frontend script loaded successfully with Google Sheets integration');
