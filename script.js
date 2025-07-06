@@ -1,16 +1,97 @@
-// Configuration
-const CONFIG = {
-    SPREADSHEET_ID: '17nzzFZwcFDUu-ywZGrp-d7_jIuohPv4N1dB_qpCls6Y', // Ganti dengan ID spreadsheet Anda
-    API_KEY: 'AIzaSyBiRSNnRLRYO5sUIaQdqAYLreSM2nQoG1E', // Ganti dengan API key Google Sheets Anda
-    DANA_API_URL: 'https://link.dana.id/qr/YOUR_DANA_ID', // Ganti dengan URL DANA Anda
-    DANA_PHONE: '081234567890', // Ganti dengan nomor DANA admin
-    QRIS_IMAGE_URL: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+CODE' // Ganti dengan URL gambar QRIS
+// =================== KONFIGURASI API ===================
+// GANTI URL INI dengan Web App URL dari Google Apps Script Anda
+const API_CONFIG = {
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec', // WAJIB DIGANTI!
+    TIMEOUT: 10000,
+    RETRY_ATTEMPTS: 3
 };
 
+// =================== API CLIENT CLASS ===================
+class MyQuotaAPI {
+    constructor(baseUrl) {
+        this.baseUrl = baseUrl;
+        this.isConfigured = !baseUrl.includes('https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec');
+    }
+    
+    async callAPI(action, data = null, id = null) {
+        if (!this.isConfigured) {
+            console.warn('⚠️ API belum dikonfigurasi! Menggunakan data demo.');
+            throw new Error('API_NOT_CONFIGURED');
+        }
+        
+        try {
+            const url = new URL(this.baseUrl);
+            url.searchParams.append('action', action);
+            
+            if (data) {
+                url.searchParams.append('data', JSON.stringify(data));
+            }
+            
+            if (id) {
+                url.searchParams.append('id', id);
+            }
+            
+            console.log('🔄 API Call:', action, data ? 'with data' : 'no data');
+            
+            const response = await fetch(url.toString(), {
+                method: 'GET', // Apps Script menggunakan GET
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'API call failed');
+            }
+            
+            console.log('✅ API Success:', action, result.data ? `${result.data.length} items` : 'success');
+            return result;
+            
+        } catch (error) {
+            console.error('❌ API Error:', action, error.message);
+            throw error;
+        }
+    }
+    
+    // Categories API
+    async getCategories() {
+        return this.callAPI('getCategories');
+    }
+    
+    // Packages API
+    async getPackages() {
+        return this.callAPI('getPackages');
+    }
+    
+    // Transactions API
+    async addTransaction(transactionData) {
+        return this.callAPI('addTransaction', transactionData);
+    }
+    
+    // Settings API
+    async getSettings() {
+        return this.callAPI('getSettings');
+    }
+    
+    // Health check
+    async healthCheck() {
+        return this.callAPI('healthCheck');
+    }
+}
+
+// =================== GLOBAL API INSTANCE ===================
+const API = new MyQuotaAPI(API_CONFIG.APPS_SCRIPT_URL);
+
+// =================== MAIN APPLICATION ===================
 // Global variables
 let categories = [];
 let packages = [];
-let transactions = [];
 let settings = {};
 let selectedCategory = null;
 let selectedPackage = null;
@@ -28,18 +109,187 @@ document.addEventListener('DOMContentLoaded', function() {
 async function initializeApp() {
     try {
         showLoading(true);
-        await loadCategories();
-        await loadPackages();
-        await loadSettings();
+        
+        // Check if API is configured
+        if (!API.isConfigured) {
+            showToast('⚠️ Backend belum dikonfigurasi. Menggunakan data demo.', 'warning');
+            await loadDemoData();
+        } else {
+            // Try to load real data from Apps Script
+            try {
+                await loadDataFromAPI();
+                showToast('✅ Data berhasil dimuat dari server!', 'success');
+            } catch (error) {
+                console.error('Failed to load from API, using demo data:', error);
+                showToast('⚠️ Gagal terhubung ke server. Menggunakan data demo.', 'warning');
+                await loadDemoData();
+            }
+        }
+        
         setupEventListeners();
         renderCategories();
         renderPackages();
         showLoading(false);
+        
+        // Start auto refresh if API is configured
+        if (API.isConfigured) {
+            startAutoRefresh();
+        }
+        
+        console.log('✅ App initialized successfully');
+        
     } catch (error) {
-        console.error('Error initializing app:', error);
-        showToast('Gagal memuat aplikasi', 'error');
+        console.error('❌ Error initializing app:', error);
+        showToast('❌ Gagal memuat aplikasi', 'error');
+        await loadDemoData();
+        setupEventListeners();
+        renderCategories();
+        renderPackages();
         showLoading(false);
     }
+}
+
+// Load data from Google Apps Script
+async function loadDataFromAPI() {
+    try {
+        console.log('🔄 Loading data from API...');
+        
+        // Test API connection first
+        const healthCheck = await API.healthCheck();
+        console.log('✅ API Health Check:', healthCheck.message);
+        
+        // Load categories, packages, and settings
+        const [categoriesResult, packagesResult, settingsResult] = await Promise.all([
+            API.getCategories(),
+            API.getPackages(),
+            API.getSettings()
+        ]);
+        
+        categories = categoriesResult.data || [];
+        packages = packagesResult.data || [];
+        settings = settingsResult.data || {};
+        
+        console.log('✅ Data loaded from API:', { 
+            categories: categories.length, 
+            packages: packages.length,
+            settings: Object.keys(settings).length
+        });
+        
+        // Update payment settings if available
+        if (settings.qris_image_url) {
+            updateQRISImage(settings.qris_image_url);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error loading data from API:', error);
+        throw error;
+    }
+}
+
+// Load demo data (fallback)
+async function loadDemoData() {
+    console.log('📋 Loading demo data...');
+    
+    categories = [
+        {
+            id: 1,
+            name: 'Official XL / AXIS',
+            slug: 'official-xl-axis',
+            description: 'Paket resmi XL dan AXIS dengan kualitas terjamin',
+            icon: 'fas fa-star',
+            status: 'active'
+        },
+        {
+            id: 2,
+            name: 'XL Circle',
+            slug: 'xl-circle',
+            description: 'Paket premium XL Circle untuk pengguna VIP',
+            icon: 'fas fa-users',
+            status: 'active'
+        },
+        {
+            id: 3,
+            name: 'Paket Harian',
+            slug: 'paket-harian',
+            description: 'Paket internet harian untuk kebutuhan sehari-hari',
+            icon: 'fas fa-calendar-day',
+            status: 'active'
+        },
+        {
+            id: 4,
+            name: 'Perpanjangan Masa Aktif',
+            slug: 'perpanjangan-masa-aktif',
+            description: 'Perpanjangan masa aktif kartu tanpa kuota internet',
+            icon: 'fas fa-clock',
+            status: 'active'
+        }
+    ];
+    
+    packages = [
+        {
+            id: 1,
+            category_id: 1,
+            name: 'XL Combo 10GB',
+            quota: '10GB',
+            price: 50000,
+            validity: '30 hari',
+            description: 'Paket internet 10GB dengan bonus telpon dan SMS unlimited ke sesama XL',
+            is_popular: true,
+            status: 'active'
+        },
+        {
+            id: 2,
+            category_id: 1,
+            name: 'AXIS Bronet 5GB',
+            quota: '5GB',
+            price: 25000,
+            validity: '30 hari',
+            description: 'Paket internet 5GB untuk kebutuhan browsing dan media sosial',
+            is_popular: false,
+            status: 'active'
+        },
+        {
+            id: 3,
+            category_id: 2,
+            name: 'XL Circle 15GB',
+            quota: '15GB',
+            price: 75000,
+            validity: '30 hari',
+            description: 'Paket premium XL Circle dengan kuota besar dan kecepatan tinggi',
+            is_popular: true,
+            status: 'active'
+        },
+        {
+            id: 4,
+            category_id: 3,
+            name: 'Paket Harian 1GB',
+            quota: '1GB',
+            price: 5000,
+            validity: '1 hari',
+            description: 'Paket internet harian 1GB untuk kebutuhan sehari-hari',
+            is_popular: false,
+            status: 'active'
+        },
+        {
+            id: 5,
+            category_id: 4,
+            name: 'Perpanjangan 30 Hari',
+            quota: 'Masa Aktif',
+            price: 10000,
+            validity: '30 hari',
+            description: 'Perpanjangan masa aktif kartu tanpa kuota internet',
+            is_popular: false,
+            status: 'active'
+        }
+    ];
+    
+    settings = {
+        qris_image_url: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+DEMO',
+        dana_link: 'https://link.dana.id/qr/demo',
+        admin_whatsapp: '6281234567890'
+    };
+    
+    console.log('📋 Demo data loaded');
 }
 
 // Setup event listeners
@@ -47,10 +297,10 @@ function setupEventListeners() {
     // Search input
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
-        searchInput.addEventListener('input', function() {
+        searchInput.addEventListener('input', debounce(function() {
             searchQuery = this.value.toLowerCase();
-            filterPackages();
-        });
+            renderPackages();
+        }, 300));
     }
 
     // Phone number input formatting
@@ -80,192 +330,6 @@ function setupEventListeners() {
             this.classList.add('active');
         });
     });
-}
-
-// Load categories from Google Sheets
-async function loadCategories() {
-    try {
-        // For now, using simulated data. Replace with Google Sheets API call
-        // const response = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/Categories!A:G?key=${CONFIG.API_KEY}`);
-        // const data = await response.json();
-        
-        // Simulated data - replace with actual API response processing
-        categories = [
-            {
-                id: 1,
-                name: 'Official XL / AXIS',
-                slug: 'official-xl-axis',
-                description: 'Paket resmi XL dan AXIS dengan kualitas terjamin',
-                icon: 'fas fa-star',
-                status: 'active',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 2,
-                name: 'XL Circle',
-                slug: 'xl-circle',
-                description: 'Paket premium XL Circle untuk pengguna VIP',
-                icon: 'fas fa-users',
-                status: 'active',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 3,
-                name: 'Paket Harian',
-                slug: 'paket-harian',
-                description: 'Paket internet harian untuk kebutuhan sehari-hari',
-                icon: 'fas fa-calendar-day',
-                status: 'active',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 4,
-                name: 'Perpanjangan Masa Aktif',
-                slug: 'perpanjangan-masa-aktif',
-                description: 'Perpanjangan masa aktif kartu tanpa kuota internet',
-                icon: 'fas fa-clock',
-                status: 'active',
-                created_at: new Date().toISOString()
-            }
-        ];
-        
-        console.log('Categories loaded:', categories.length);
-    } catch (error) {
-        console.error('Error loading categories:', error);
-        throw error;
-    }
-}
-
-// Load packages from Google Sheets
-async function loadPackages() {
-    try {
-        // For now, using simulated data. Replace with Google Sheets API call
-        packages = [
-            {
-                id: 1,
-                category_id: 1,
-                name: 'XL Combo 10GB',
-                quota: '10GB',
-                price: 50000,
-                validity: '30 hari',
-                description: 'Paket internet 10GB dengan bonus telpon dan SMS unlimited ke sesama XL',
-                is_popular: true,
-                status: 'active',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 2,
-                category_id: 1,
-                name: 'AXIS Bronet 5GB',
-                quota: '5GB',
-                price: 25000,
-                validity: '30 hari',
-                description: 'Paket internet 5GB untuk kebutuhan browsing dan media sosial',
-                is_popular: false,
-                status: 'active',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 3,
-                category_id: 2,
-                name: 'XL Circle 15GB',
-                quota: '15GB',
-                price: 75000,
-                validity: '30 hari',
-                description: 'Paket premium XL Circle dengan kuota besar dan kecepatan tinggi',
-                is_popular: true,
-                status: 'active',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 4,
-                category_id: 3,
-                name: 'Paket Harian 1GB',
-                quota: '1GB',
-                price: 5000,
-                validity: '1 hari',
-                description: 'Paket internet harian 1GB untuk kebutuhan sehari-hari',
-                is_popular: false,
-                status: 'active',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 5,
-                category_id: 3,
-                name: 'Paket Harian 2GB',
-                quota: '2GB',
-                price: 8000,
-                validity: '1 hari',
-                description: 'Paket internet harian 2GB dengan kecepatan 4G penuh',
-                is_popular: true,
-                status: 'active',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 6,
-                category_id: 4,
-                name: 'Perpanjangan 30 Hari',
-                quota: 'Masa Aktif',
-                price: 10000,
-                validity: '30 hari',
-                description: 'Perpanjangan masa aktif kartu tanpa kuota internet',
-                is_popular: false,
-                status: 'active',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 7,
-                category_id: 1,
-                name: 'XL HotRod 20GB',
-                quota: '20GB',
-                price: 85000,
-                validity: '30 hari',
-                description: 'Paket internet XL HotRod 20GB dengan kecepatan 4G+ dan bonus aplikasi',
-                is_popular: true,
-                status: 'active',
-                created_at: new Date().toISOString()
-            },
-            {
-                id: 8,
-                category_id: 2,
-                name: 'XL Circle 30GB',
-                quota: '30GB',
-                price: 120000,
-                validity: '30 hari',
-                description: 'Paket premium XL Circle 30GB dengan layanan prioritas dan bonus entertainment',
-                is_popular: false,
-                status: 'active',
-                created_at: new Date().toISOString()
-            }
-        ];
-        
-        console.log('Packages loaded:', packages.length);
-    } catch (error) {
-        console.error('Error loading packages:', error);
-        throw error;
-    }
-}
-
-// Load settings from Google Sheets
-async function loadSettings() {
-    try {
-        // Simulated settings data
-        settings = {
-            app_name: 'MyQuota',
-            app_version: '1.0.0',
-            maintenance_mode: false,
-            min_transaction: 5000,
-            max_transaction: 1000000,
-            admin_phone: '081234567890',
-            qris_image: CONFIG.QRIS_IMAGE_URL,
-            dana_link: CONFIG.DANA_API_URL
-        };
-        
-        console.log('Settings loaded:', settings);
-    } catch (error) {
-        console.error('Error loading settings:', error);
-        throw error;
-    }
 }
 
 // Render categories
@@ -327,7 +391,7 @@ function renderPackages() {
                     <div class="package-validity">Berlaku ${pkg.validity}</div>
                 </div>
                 <div class="package-price">
-                    <div class="price-amount">Rp ${pkg.price.toLocaleString('id-ID')}</div>
+                    <div class="price-amount">Rp ${Number(pkg.price).toLocaleString('id-ID')}</div>
                 </div>
             </div>
             <div class="package-description">${pkg.description}</div>
@@ -347,7 +411,7 @@ function getFilteredPackages() {
     
     // Filter by category
     if (selectedCategory) {
-        filteredPackages = filteredPackages.filter(pkg => pkg.category_id === selectedCategory);
+        filteredPackages = filteredPackages.filter(pkg => pkg.category_id == selectedCategory);
     }
     
     // Filter by search query
@@ -362,7 +426,7 @@ function getFilteredPackages() {
     // Sort packages
     filteredPackages.sort((a, b) => {
         if (currentSort === 'price') {
-            return sortOrder === 'asc' ? a.price - b.price : b.price - a.price;
+            return sortOrder === 'asc' ? Number(a.price) - Number(b.price) : Number(b.price) - Number(a.price);
         } else if (currentSort === 'name') {
             return sortOrder === 'asc' ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
         } else if (currentSort === 'popular') {
@@ -386,10 +450,10 @@ function selectCategory(categoryId) {
 
 // View package details
 function viewPackageDetails(packageId) {
-    const pkg = packages.find(p => p.id === packageId);
+    const pkg = packages.find(p => p.id == packageId);
     if (!pkg) return;
     
-    const category = categories.find(c => c.id === pkg.category_id);
+    const category = categories.find(c => c.id == pkg.category_id);
     
     const detailContent = document.getElementById('packageDetailContent');
     detailContent.innerHTML = `
@@ -409,7 +473,7 @@ function viewPackageDetails(packageId) {
             </div>
             <div class="detail-row">
                 <span class="label">Harga:</span>
-                <span class="value price">Rp ${pkg.price.toLocaleString('id-ID')}</span>
+                <span class="value price">Rp ${Number(pkg.price).toLocaleString('id-ID')}</span>
             </div>
             <div class="detail-description">
                 <h4>Deskripsi:</h4>
@@ -427,7 +491,7 @@ function viewPackageDetails(packageId) {
 
 // Buy package
 function buyPackage(packageId) {
-    selectedPackage = packages.find(p => p.id === packageId);
+    selectedPackage = packages.find(p => p.id == packageId);
     if (!selectedPackage) return;
     
     const selectedPackageInfo = document.getElementById('selectedPackageInfo');
@@ -435,7 +499,7 @@ function buyPackage(packageId) {
         <h4>${selectedPackage.name}</h4>
         <p>Kuota: ${selectedPackage.quota}</p>
         <p>Masa Berlaku: ${selectedPackage.validity}</p>
-        <div class="price">Rp ${selectedPackage.price.toLocaleString('id-ID')}</div>
+        <div class="price">Rp ${Number(selectedPackage.price).toLocaleString('id-ID')}</div>
     `;
     
     // Reset form
@@ -462,11 +526,6 @@ function selectPayment(method) {
     
     if (method === 'qris') {
         document.getElementById('qrisImage').classList.add('active');
-        // Update QRIS image if needed
-        const qrisImg = document.querySelector('#qrisImage img');
-        if (qrisImg && settings.qris_image) {
-            qrisImg.src = settings.qris_image;
-        }
     } else {
         document.getElementById('qrisImage').classList.remove('active');
     }
@@ -504,51 +563,68 @@ async function processPurchase() {
         buyButton.textContent = 'Memproses...';
         buyButton.disabled = true;
         
-        // Generate transaction ID
-        const transactionId = generateTransactionId();
-        
         // Create transaction object
-        const transaction = {
-            id: Date.now(),
-            transaction_id: transactionId,
+        const transactionData = {
             package_id: selectedPackage.id,
             phone_number: phoneNumber,
             amount: selectedPackage.price,
             status: 'pending',
-            payment_method: selectedPayment,
-            created_at: new Date().toISOString()
+            payment_method: selectedPayment
         };
         
-        // Save transaction (simulate API call)
-        await saveTransaction(transaction);
+        let transactionResult = null;
+        
+        // Try to save to backend if configured
+        if (API.isConfigured) {
+            try {
+                transactionResult = await API.addTransaction(transactionData);
+                console.log('✅ Transaction saved to backend:', transactionResult);
+                showToast('✅ Transaksi berhasil disimpan ke database!', 'success');
+            } catch (error) {
+                console.error('❌ Failed to save transaction to backend:', error);
+                showToast('⚠️ Transaksi dibuat tapi gagal disimpan ke database', 'warning');
+            }
+        } else {
+            console.log('📋 Transaction created locally (demo mode)');
+            transactionResult = {
+                success: true,
+                data: {
+                    transaction_id: 'DEMO' + Date.now(),
+                    ...transactionData
+                }
+            };
+        }
         
         // Handle payment method
         if (selectedPayment === 'qris') {
-            showToast('Scan QR Code untuk melanjutkan pembayaran', 'warning');
+            showToast('📱 Scan QR Code untuk melanjutkan pembayaran', 'warning');
         } else if (selectedPayment === 'dana') {
             // Redirect to DANA
-            const danaUrl = `${settings.dana_link}?amount=${selectedPackage.price}&phone=${phoneNumber}&package=${selectedPackage.name}`;
+            const danaUrl = settings.dana_link || `https://link.dana.id/qr/demo?amount=${selectedPackage.price}&phone=${phoneNumber}&package=${encodeURIComponent(selectedPackage.name)}`;
             window.open(danaUrl, '_blank');
-            showToast('Dialihkan ke DANA...', 'success');
+            showToast('🔗 Dialihkan ke DANA...', 'success');
         }
         
         // Reset button
         buyButton.textContent = originalText;
         buyButton.disabled = false;
         
-        // Close modal after delay if QRIS
-        if (selectedPayment === 'qris') {
-            setTimeout(() => {
-                closeModal();
-                showToast('Transaksi berhasil dibuat. Menunggu pembayaran...', 'success');
-            }, 2000);
-        } else {
+        // Close modal
+        setTimeout(() => {
             closeModal();
+            if (selectedPayment === 'qris') {
+                showToast('📝 Transaksi berhasil dibuat. Menunggu pembayaran...', 'success');
+            }
+        }, selectedPayment === 'qris' ? 2000 : 500);
+        
+        // Send WhatsApp notification to admin
+        if (transactionResult && transactionResult.data) {
+            sendWhatsAppNotification(transactionData, transactionResult.data.transaction_id);
         }
         
     } catch (error) {
-        console.error('Error processing purchase:', error);
-        showToast('Gagal memproses transaksi', 'error');
+        console.error('❌ Error processing purchase:', error);
+        showToast('❌ Gagal memproses transaksi', 'error');
         
         // Reset button
         const buyButton = document.querySelector('#purchaseModal .btn-primary');
@@ -557,31 +633,84 @@ async function processPurchase() {
     }
 }
 
-// Save transaction to Google Sheets
-async function saveTransaction(transaction) {
+// Send WhatsApp notification to admin
+function sendWhatsAppNotification(transactionData, transactionId) {
     try {
-        // Simulate API call to save transaction
-        // In real implementation, this would call Google Sheets API
-        console.log('Saving transaction:', transaction);
+        const adminWhatsApp = settings.admin_whatsapp || '6281234567890';
         
-        // Add to local transactions array
-        transactions.push(transaction);
+        const message = `
+*TRANSAKSI BARU - MyQuota*
+
+📦 *Paket:* ${selectedPackage.name}
+📱 *No. HP:* ${transactionData.phone_number}
+💰 *Harga:* Rp ${Number(transactionData.amount).toLocaleString('id-ID')}
+💳 *Pembayaran:* ${transactionData.payment_method.toUpperCase()}
+🔗 *ID:* ${transactionId}
+⏰ *Waktu:* ${new Date().toLocaleString('id-ID')}
+
+Silakan cek panel admin untuk approve transaksi.
+        `.trim();
         
-        // Simulate delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        const whatsappUrl = `https://wa.me/${adminWhatsApp}?text=${encodeURIComponent(message)}`;
         
-        return transaction;
+        // Optional: Open WhatsApp in new tab
+        setTimeout(() => {
+            if (confirm('Kirim notifikasi ke admin via WhatsApp?')) {
+                window.open(whatsappUrl, '_blank');
+            }
+        }, 1000);
+        
     } catch (error) {
-        console.error('Error saving transaction:', error);
-        throw error;
+        console.error('Failed to send WhatsApp notification:', error);
     }
 }
 
-// Generate transaction ID
-function generateTransactionId() {
-    const timestamp = Date.now().toString();
-    const random = Math.random().toString(36).substring(2, 8);
-    return `TRX${timestamp.slice(-6)}${random.toUpperCase()}`;
+// Auto refresh data every 30 seconds if API is configured
+function startAutoRefresh() {
+    if (API.isConfigured) {
+        setInterval(async () => {
+            try {
+                await loadDataFromAPI();
+                renderCategories();
+                renderPackages();
+                console.log('🔄 Auto refresh completed');
+            } catch (error) {
+                console.error('❌ Auto refresh failed:', error);
+            }
+        }, 30000); // 30 seconds
+    }
+}
+
+// Manual refresh function
+async function refreshData() {
+    try {
+        showLoading(true);
+        
+        if (API.isConfigured) {
+            await loadDataFromAPI();
+            showToast('✅ Data berhasil diperbarui dari server!', 'success');
+        } else {
+            await loadDemoData();
+            showToast('📋 Data demo dimuat ulang', 'info');
+        }
+        
+        renderCategories();
+        renderPackages();
+        
+    } catch (error) {
+        console.error('❌ Error refreshing data:', error);
+        showToast('❌ Gagal memperbarui data', 'error');
+    } finally {
+        showLoading(false);
+    }
+}
+
+// Update QRIS image
+function updateQRISImage(imageUrl) {
+    const qrisImg = document.querySelector('#qrisImage img');
+    if (qrisImg && imageUrl) {
+        qrisImg.src = imageUrl;
+    }
 }
 
 // Toggle sort
@@ -613,11 +742,6 @@ function toggleSort() {
 // Toggle filter (placeholder)
 function toggleFilter() {
     showToast('Filter sedang dalam pengembangan', 'warning');
-}
-
-// Filter packages (called from search input)
-function filterPackages() {
-    renderPackages();
 }
 
 // Close modals
@@ -657,107 +781,189 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// Utility functions
-function formatCurrency(amount) {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(amount);
-}
-
-function formatPhoneNumber(phone) {
-    // Remove non-digits
-    phone = phone.replace(/\D/g, '');
-    
-    // Add country code if not present
-    if (phone.startsWith('8')) {
-        phone = '62' + phone;
-    } else if (phone.startsWith('08')) {
-        phone = '62' + phone.substring(1);
-    }
-    
-    return phone;
-}
-
-// Service Worker Registration (for PWA)
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js')
-            .then(function(registration) {
-                console.log('ServiceWorker registration successful');
-            })
-            .catch(function(err) {
-                console.log('ServiceWorker registration failed');
-            });
-    });
-}
-
-// Add CSS for detail modal styles
-const detailStyles = document.createElement('style');
-detailStyles.textContent = `
-    .package-detail {
-        margin-bottom: 20px;
-    }
-    
-    .package-detail h3 {
-        font-size: 18px;
-        font-weight: 700;
-        margin-bottom: 15px;
-        color: #333;
-    }
-    
-    .detail-row {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 10px;
-        padding: 8px 0;
-        border-bottom: 1px solid #f0f0f0;
-    }
-    
-    .detail-row .label {
-        font-weight: 600;
-        color: #666;
-    }
-    
-    .detail-row .value {
-        color: #333;
-    }
-    
-    .detail-row .value.price {
-        color: #ec008c;
-        font-weight: 700;
-        font-size: 16px;
-    }
-    
-    .detail-description {
-        margin-top: 15px;
-    }
-    
-    .detail-description h4 {
-        font-size: 14px;
-        font-weight: 600;
-        margin-bottom: 8px;
-        color: #333;
-    }
-    
-    .detail-description p {
-        font-size: 13px;
-        line-height: 1.5;
-        color: #666;
-    }
-    
-    .popular-badge {
-        background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+// Connection status indicator
+function addConnectionStatusIndicator() {
+    const indicator = document.createElement('div');
+    indicator.id = 'connection-status';
+    indicator.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        right: 20px;
+        background: ${API.isConfigured ? '#28a745' : '#ffc107'};
         color: white;
-        padding: 5px 10px;
-        border-radius: 15px;
+        padding: 8px 12px;
+        border-radius: 20px;
         font-size: 12px;
-        font-weight: 600;
-        display: inline-block;
-        margin-top: 10px;
-    }
-`;
+        z-index: 1000;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        cursor: pointer;
+    `;
+    indicator.textContent = API.isConfigured ? '🟢 Server' : '📋 Demo';
+    indicator.onclick = () => {
+        if (API.isConfigured) {
+            API.healthCheck()
+                .then(() => showToast('🟢 Terhubung ke server', 'success'))
+                .catch(() => showToast('🔴 Gagal terhubung ke server', 'error'));
+        } else {
+            showToast('📋 Mode demo - update APPS_SCRIPT_URL untuk koneksi real', 'info');
+        }
+    };
+    document.body.appendChild(indicator);
+}
 
-document.head.appendChild(detailStyles);
+// Add refresh button to header
+function addRefreshButton() {
+    const header = document.querySelector('.header-content');
+    if (header && !header.querySelector('.refresh-btn')) {
+        const refreshBtn = document.createElement('button');
+        refreshBtn.className = 'refresh-btn';
+        refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+        refreshBtn.onclick = refreshData;
+        refreshBtn.style.cssText = `
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 14px;
+            transition: transform 0.3s ease;
+        `;
+        
+        refreshBtn.addEventListener('mouseover', function() {
+            this.style.transform = 'scale(1.1) rotate(180deg)';
+        });
+        
+        refreshBtn.addEventListener('mouseout', function() {
+            this.style.transform = 'scale(1) rotate(0deg)';
+        });
+        
+        header.appendChild(refreshBtn);
+    }
+}
+
+// Utility functions
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Initialize UI enhancements
+document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(() => {
+        addConnectionStatusIndicator();
+        addRefreshButton();
+    }, 1000);
+});
+
+// Add CSS for detail modal styles if not exists
+if (!document.querySelector('#detail-modal-styles')) {
+    const detailStyles = document.createElement('style');
+    detailStyles.id = 'detail-modal-styles';
+    detailStyles.textContent = `
+        .package-detail h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #333;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .detail-row .label {
+            font-weight: 600;
+            color: #666;
+        }
+        
+        .detail-row .value {
+            color: #333;
+        }
+        
+        .detail-row .value.price {
+            color: #ec008c;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        
+        .detail-description {
+            margin-top: 15px;
+        }
+        
+        .detail-description h4 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        .detail-description p {
+            font-size: 13px;
+            line-height: 1.5;
+            color: #666;
+        }
+        
+        .popular-badge {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 10px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #ddd;
+        }
+        
+        .empty-state h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .empty-state p {
+            font-size: 14px;
+            line-height: 1.5;
+        }
+    `;
+    
+    document.head.appendChild(detailStyles);
+}
+
+// Export functions for global access
+window.selectCategory = selectCategory;
+window.viewPackageDetails = viewPackageDetails;
+window.buyPackage = buyPackage;
+window.selectPayment = selectPayment;
+window.processPurchase = processPurchase;
+window.toggleSort = toggleSort;
+window.toggleFilter = toggleFilter;
+window.closeModal = closeModal;
+window.closeDetailModal = closeDetailModal;
+window.refreshData = refreshData;
