@@ -1,7 +1,7 @@
 // Configuration
 const CONFIG = {
-    SPREADSHEET_ID: 'YOUR_SPREADSHEET_ID', // Ganti dengan ID spreadsheet Anda
-    API_KEY: 'YOUR_API_KEY', // Ganti dengan API key Google Sheets Anda
+    SPREADSHEET_ID: '17nzzFZwcFDUu-ywZGrp-d7_jIuohPv4N1dB_qpCls6Y', // Ganti dengan ID spreadsheet Anda
+    API_KEY: 'AIzaSyBiRSNnRLRYO5sUIaQdqAYLreSM2nQoG1E', // Ganti dengan API key Google Sheets Anda
     DANA_API_URL: 'https://link.dana.id/qr/YOUR_DANA_ID', // Ganti dengan URL DANA Anda
     DANA_PHONE: '081234567890', // Ganti dengan nomor DANA admin
     QRIS_IMAGE_URL: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+CODE' // Ganti dengan URL gambar QRIS
