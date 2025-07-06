@@ -20,7 +20,7 @@ let currentEditingType = null;
 
 // API Configuration - pastikan ini sesuai dengan config.js atau hardcode
 const ADMIN_API_CONFIG = {
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwC7R0JGrhGZO2rLpYM9HNFU-kollHgJmTBQGmBTIGY04bbb_nSxs0Ekca519mQF3qo5g/exec',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZrXoIqE27I-893nCt5FrxfWHmCy6M7B56vPT-hgp_HShUhLPMZFDDP1HSlkvcoSg7Kg/exec',
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3
 };
@@ -33,6 +33,56 @@ class AdminAPI {
     
     async callAPI(action, data = null, id = null) {
         try {
+            // Use POST method with FormData for better CORS compatibility
+            const formData = new FormData();
+            formData.append('action', action);
+            
+            if (data) {
+                formData.append('data', JSON.stringify(data));
+            }
+            
+            if (id) {
+                formData.append('id', id);
+            }
+            
+            console.log('🔄 Admin API Call (POST):', action, data ? 'with data' : 'no data');
+            
+            const response = await fetch(this.baseUrl, {
+                method: 'POST',
+                body: formData,
+                mode: 'cors',
+                credentials: 'omit'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'API call failed');
+            }
+            
+            console.log('✅ Admin API Success:', action);
+            return result;
+            
+        } catch (error) {
+            console.error('❌ Admin API Error:', action, error.message);
+            
+            // Fallback to GET method if POST fails
+            if (error.message.includes('CORS') || error.message.includes('fetch')) {
+                console.log('🔄 Trying GET fallback...');
+                return this.callAPIWithGET(action, data, id);
+            }
+            
+            throw error;
+        }
+    }
+    
+    // Fallback GET method
+    async callAPIWithGET(action, data = null, id = null) {
+        try {
             const url = new URL(this.baseUrl);
             url.searchParams.append('action', action);
             
@@ -44,7 +94,7 @@ class AdminAPI {
                 url.searchParams.append('id', id);
             }
             
-            console.log('🔄 Admin API Call:', action, data ? 'with data' : 'no data');
+            console.log('🔄 Admin API Call (GET fallback):', action);
             
             const response = await fetch(url.toString(), {
                 method: 'GET',
@@ -63,11 +113,11 @@ class AdminAPI {
                 throw new Error(result.error || 'API call failed');
             }
             
-            console.log('✅ Admin API Success:', action);
+            console.log('✅ Admin API Success (GET):', action);
             return result;
             
         } catch (error) {
-            console.error('❌ Admin API Error:', action, error.message);
+            console.error('❌ Admin API GET Error:', action, error.message);
             throw error;
         }
     }
