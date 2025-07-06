@@ -203,7 +203,7 @@ function setupEventListeners() {
     navItems.forEach(item => {
         item.addEventListener('click', function(e) {
             e.preventDefault();
-            navItems.forEach(nav => nav.classList.remove('active');
+            navItems.forEach(nav => nav.classList.remove('active'));
         });
     });
 }
