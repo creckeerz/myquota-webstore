@@ -1,12 +1,10 @@
-// =================== KONFIGURASI API - UPDATED ===================
-// URL sudah di-update dengan URL Google Apps Script Anda
+// =================== KONFIGURASI API ===================
 const API_CONFIG = {
     APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZrXoIqE27I-893nCt5FrxfWHmCy6M7B56vPT-hgp_HShUhLPMZFDDP1HSlkvcoSg7Kg/exec',
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3
 };
 
-// Test koneksi
 console.log('🔧 API Configuration:', {
     url: API_CONFIG.APPS_SCRIPT_URL,
     configured: true,
@@ -15,39 +13,9 @@ console.log('🔧 API Configuration:', {
 
 // =================== API CLIENT CLASS ===================
 class MyQuotaAPI {
-// KONFIGURASI API - FIXED
-const API_CONFIG = {
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZrXoIqE27I-893nCt5FrxfWHmCy6M7B56vPT-hgp_HShUhLPMZFDDP1HSlkvcoSg7Kg/exec',
-    TIMEOUT: 10000,
-    RETRY_ATTEMPTS: 3
-};
-
-// Force reload untuk testing
-console.log('🔧 API URL:', API_CONFIG.APPS_SCRIPT_URL);
-
-// Test koneksi otomatis
-setTimeout(() => {
-    fetch(API_CONFIG.APPS_SCRIPT_URL + '?action=healthCheck')
-        .then(response => response.json())
-        .then(data => {
-            console.log('✅ API Test Result:', data);
-            if (data.success) {
-                showToast('🟢 Backend terhubung!', 'success');
-            } else {
-                showToast('❌ Backend error: ' + data.error, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('❌ Connection failed:', error);
-            showToast('🔴 Gagal terhubung ke backend', 'error');
-        });
-}, 2000);
-
-// =================== API CLIENT CLASS ===================
-class MyQuotaAPI {
     constructor(baseUrl) {
         this.baseUrl = baseUrl;
-        this.isConfigured = true; // Always true now since URL is configured
+        this.isConfigured = true;
     }
     
     async callAPI(action, data = null, id = null) {
@@ -120,8 +88,7 @@ class MyQuotaAPI {
 // =================== GLOBAL API INSTANCE ===================
 const API = new MyQuotaAPI(API_CONFIG.APPS_SCRIPT_URL);
 
-// =================== MAIN APPLICATION ===================
-// Global variables
+// =================== GLOBAL VARIABLES ===================
 let categories = [];
 let packages = [];
 let settings = {};
@@ -132,15 +99,23 @@ let currentSort = 'price';
 let sortOrder = 'asc';
 let searchQuery = '';
 
+// =================== MAIN APPLICATION ===================
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('📱 DOM Content Loaded - Initializing app...');
     initializeApp();
 });
 
 // Initialize application
 async function initializeApp() {
     try {
+        console.log('🚀 Starting app initialization...');
         showLoading(true);
+        
+        // Test API connection first
+        console.log('🔌 Testing API connection...');
+        await testAPIConnection();
         
         // Load real data from Apps Script
         await loadDataFromAPI();
@@ -154,6 +129,10 @@ async function initializeApp() {
         // Start auto refresh
         startAutoRefresh();
         
+        // Add UI enhancements
+        addConnectionStatusIndicator();
+        addRefreshButton();
+        
         console.log('✅ App initialized successfully');
         
     } catch (error) {
@@ -165,6 +144,23 @@ async function initializeApp() {
         renderCategories();
         renderPackages();
         showLoading(false);
+        
+        // Still add UI enhancements
+        addConnectionStatusIndicator();
+        addRefreshButton();
+    }
+}
+
+// Test API connection
+async function testAPIConnection() {
+    try {
+        console.log('🔍 Testing connection to:', API_CONFIG.APPS_SCRIPT_URL);
+        const healthCheck = await API.healthCheck();
+        console.log('✅ API Health Check:', healthCheck.message);
+        return true;
+    } catch (error) {
+        console.error('❌ API Connection failed:', error);
+        throw error;
     }
 }
 
@@ -172,10 +168,6 @@ async function initializeApp() {
 async function loadDataFromAPI() {
     try {
         console.log('🔄 Loading data from API...');
-        
-        // Test API connection first
-        const healthCheck = await API.healthCheck();
-        console.log('✅ API Health Check:', healthCheck.message);
         
         // Load categories, packages, and settings
         const [categoriesResult, packagesResult, settingsResult] = await Promise.all([
@@ -303,16 +295,18 @@ async function loadDemoData() {
     ];
     
     settings = {
-        qris_image_url: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+DEMO',
+        qris_image_url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIiBmaWxsPSJ3aGl0ZSIvPgo8cmVjdCB4PSIyMCIgeT0iMjAiIHdpZHRoPSIxNjAiIGhlaWdodD0iMTYwIiBmaWxsPSJibGFjayIvPgo8cmVjdCB4PSIzMCIgeT0iMzAiIHdpZHRoPSIxNDAiIGhlaWdodD0iMTQwIiBmaWxsPSJ3aGl0ZSIvPgo8cmVjdCB4PSI0MCIgeT0iNDAiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiBmaWxsPSJibGFjayIvPgo8cmVjdCB4PSI4MCIgeT0iODAiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgZmlsbD0id2hpdGUiLz4KPHRleHQgeD0iMTAwIiB5PSIxOTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxMiIgZmlsbD0iYmxhY2siPlNjYW4gUVJJUzwvdGV4dD4KPC9zdmc+',
         dana_link: 'https://link.dana.id/qr/demo',
         admin_whatsapp: '6281234567890'
     };
     
-    console.log('📋 Demo data loaded');
+    console.log('📋 Demo data loaded successfully');
 }
 
 // Setup event listeners
 function setupEventListeners() {
+    console.log('🔗 Setting up event listeners...');
+    
     // Search input
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
@@ -353,10 +347,19 @@ function setupEventListeners() {
 
 // Render categories
 function renderCategories() {
+    console.log('🏷️ Rendering categories...');
     const categoryGrid = document.getElementById('categoryGrid');
-    if (!categoryGrid) return;
+    if (!categoryGrid) {
+        console.error('❌ Category grid element not found');
+        return;
+    }
     
     categoryGrid.innerHTML = '';
+    
+    if (!categories || categories.length === 0) {
+        categoryGrid.innerHTML = '<div class="empty-state">Tidak ada kategori tersedia</div>';
+        return;
+    }
     
     categories.forEach((category, index) => {
         if (category.status === 'active') {
@@ -375,12 +378,18 @@ function renderCategories() {
             categoryGrid.appendChild(categoryCard);
         }
     });
+    
+    console.log(`✅ Rendered ${categories.length} categories`);
 }
 
 // Render packages
 function renderPackages() {
+    console.log('📦 Rendering packages...');
     const packageList = document.getElementById('packageList');
-    if (!packageList) return;
+    if (!packageList) {
+        console.error('❌ Package list element not found');
+        return;
+    }
     
     packageList.innerHTML = '';
     
@@ -422,10 +431,16 @@ function renderPackages() {
         
         packageList.appendChild(packageCard);
     });
+    
+    console.log(`✅ Rendered ${filteredPackages.length} packages`);
 }
 
 // Get filtered packages based on category and search
 function getFilteredPackages() {
+    if (!packages || packages.length === 0) {
+        return [];
+    }
+    
     let filteredPackages = packages.filter(pkg => pkg.status === 'active');
     
     // Filter by category
@@ -464,7 +479,10 @@ function selectCategory(categoryId) {
     renderPackages();
     
     // Scroll to packages section
-    document.querySelector('.packages').scrollIntoView({ behavior: 'smooth' });
+    const packagesSection = document.querySelector('.packages');
+    if (packagesSection) {
+        packagesSection.scrollIntoView({ behavior: 'smooth' });
+    }
 }
 
 // View package details
@@ -683,6 +701,7 @@ function startAutoRefresh() {
 // Manual refresh function
 async function refreshData() {
     try {
+        console.log('🔄 Manual refresh triggered...');
         showLoading(true);
         await loadDataFromAPI();
         renderCategories();
@@ -845,14 +864,6 @@ function debounce(func, wait) {
     };
 }
 
-// Initialize UI enhancements
-document.addEventListener('DOMContentLoaded', function() {
-    setTimeout(() => {
-        addConnectionStatusIndicator();
-        addRefreshButton();
-    }, 1000);
-});
-
 // Export functions for global access
 window.selectCategory = selectCategory;
 window.viewPackageDetails = viewPackageDetails;
@@ -864,70 +875,3 @@ window.toggleFilter = toggleFilter;
 window.closeModal = closeModal;
 window.closeDetailModal = closeDetailModal;
 window.refreshData = refreshData;
-
-
-// FORCE REFRESH DATA - Add this at the end of script.js
-document.addEventListener('DOMContentLoaded', function() {
-    // Add manual refresh button
-    const refreshBtn = document.createElement('button');
-    refreshBtn.innerHTML = '🔄 Refresh Data';
-    refreshBtn.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: #ec008c;
-        color: white;
-        border: none;
-        padding: 10px 15px;
-        border-radius: 25px;
-        cursor: pointer;
-        z-index: 1000;
-        font-weight: bold;
-    `;
-    
-    refreshBtn.onclick = async function() {
-        try {
-            showLoading(true);
-            
-            // Test API first
-            const healthCheck = await fetch(API_CONFIG.APPS_SCRIPT_URL + '?action=healthCheck');
-            const healthResult = await healthCheck.json();
-            
-            if (healthResult.success) {
-                // Load real data
-                const categoriesResponse = await fetch(API_CONFIG.APPS_SCRIPT_URL + '?action=getCategories');
-                const categoriesData = await categoriesResponse.json();
-                
-                const packagesResponse = await fetch(API_CONFIG.APPS_SCRIPT_URL + '?action=getPackages');
-                const packagesData = await packagesResponse.json();
-                
-                if (categoriesData.success && packagesData.success) {
-                    categories = categoriesData.data || [];
-                    packages = packagesData.data || [];
-                    
-                    renderCategories();
-                    renderPackages();
-                    
-                    showToast(`✅ Data loaded: ${categories.length} categories, ${packages.length} packages`, 'success');
-                } else {
-                    throw new Error('Failed to load data');
-                }
-            } else {
-                throw new Error(healthResult.error);
-            }
-            
-        } catch (error) {
-            console.error('Refresh failed:', error);
-            showToast('❌ Refresh failed: ' + error.message, 'error');
-        } finally {
-            showLoading(false);
-        }
-    };
-    
-    document.body.appendChild(refreshBtn);
-    
-    // Auto-trigger refresh after 3 seconds
-    setTimeout(() => {
-        refreshBtn.click();
-    }, 3000);
-});
