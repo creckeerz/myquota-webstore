@@ -5,30 +5,143 @@ const ADMIN_CONFIG = {
     SESSION_DURATION: 3600000, // 1 jam dalam milliseconds
 };
 
+// =================== ADMIN PANEL SCRIPT ===================
+
 // Global variables
-let currentSection = 'dashboard';
-let categories = [];
-let packages = [];
-let transactions = [];
-let settings = {};
-let isEditMode = false;
-let editingId = null;
+let adminData = {
+    categories: [],
+    packages: [],
+    transactions: [],
+    settings: {}
+};
 
-// Initialize admin panel
-document.addEventListener('DOMContentLoaded', function() {
-    checkAuthStatus();
-});
+let currentEditingId = null;
+let currentEditingType = null;
 
-// Authentication functions
-function checkAuthStatus() {
-    const session = getSession();
-    if (session && session.expiry > Date.now()) {
-        showAdminPanel();
-        loadDashboardData();
-    } else {
-        showLogin();
+// API Configuration - pastikan ini sesuai dengan config.js atau hardcode
+const ADMIN_API_CONFIG = {
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZrXoIqE27I-893nCt5FrxfWHmCy6M7B56vPT-hgp_HShUhLPMZFDDP1HSlkvcoSg7Kg/exec',
+    TIMEOUT: 10000,
+    RETRY_ATTEMPTS: 3
+};
+
+// API Client for Admin
+class AdminAPI {
+    constructor(baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+    
+    async callAPI(action, data = null, id = null) {
+        try {
+            const url = new URL(this.baseUrl);
+            url.searchParams.append('action', action);
+            
+            if (data) {
+                url.searchParams.append('data', JSON.stringify(data));
+            }
+            
+            if (id) {
+                url.searchParams.append('id', id);
+            }
+            
+            console.log('🔄 Admin API Call:', action, data ? 'with data' : 'no data');
+            
+            const response = await fetch(url.toString(), {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (!result.success) {
+                throw new Error(result.error || 'API call failed');
+            }
+            
+            console.log('✅ Admin API Success:', action);
+            return result;
+            
+        } catch (error) {
+            console.error('❌ Admin API Error:', action, error.message);
+            throw error;
+        }
+    }
+    
+    // Categories API
+    async getCategories() {
+        return this.callAPI('getCategories');
+    }
+    
+    async addCategory(categoryData) {
+        return this.callAPI('addCategory', categoryData);
+    }
+    
+    async updateCategory(id, categoryData) {
+        return this.callAPI('updateCategory', categoryData, id);
+    }
+    
+    async deleteCategory(id) {
+        return this.callAPI('deleteCategory', null, id);
+    }
+    
+    // Packages API
+    async getPackages() {
+        return this.callAPI('getPackages');
+    }
+    
+    async addPackage(packageData) {
+        return this.callAPI('addPackage', packageData);
+    }
+    
+    async updatePackage(id, packageData) {
+        return this.callAPI('updatePackage', packageData, id);
+    }
+    
+    async deletePackage(id) {
+        return this.callAPI('deletePackage', null, id);
+    }
+    
+    // Transactions API
+    async getTransactions() {
+        return this.callAPI('getTransactions');
+    }
+    
+    async updateTransactionStatus(id, status) {
+        return this.callAPI('updateTransactionStatus', { status }, id);
+    }
+    
+    // Settings API
+    async getSettings() {
+        return this.callAPI('getSettings');
+    }
+    
+    async updateSettings(settingsData) {
+        return this.callAPI('updateSettings', settingsData);
     }
 }
+
+// Initialize API
+const adminAPI = new AdminAPI(ADMIN_API_CONFIG.APPS_SCRIPT_URL);
+
+// =================== INITIALIZATION ===================
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Admin Panel Initializing...');
+    
+    // Check if already logged in
+    const isLoggedIn = localStorage.getItem('adminLoggedIn');
+    if (isLoggedIn === 'true') {
+        showAdminPanel();
+        loadAllData();
+    }
+});
+
+// =================== AUTHENTICATION ===================
 
 function handleLogin(event) {
     event.preventDefault();
@@ -36,17 +149,11 @@ function handleLogin(event) {
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     
-    if (username === ADMIN_CONFIG.USERNAME && password === ADMIN_CONFIG.PASSWORD) {
-        // Create session
-        const session = {
-            username: username,
-            loginTime: Date.now(),
-            expiry: Date.now() + ADMIN_CONFIG.SESSION_DURATION
-        };
-        
-        localStorage.setItem('admin_session', JSON.stringify(session));
+    // Simple authentication (you should implement proper auth)
+    if (username === 'admin' && password === 'admin123') {
+        localStorage.setItem('adminLoggedIn', 'true');
         showAdminPanel();
-        loadDashboardData();
+        loadAllData();
         showToast('Login berhasil!', 'success');
     } else {
         showToast('Username atau password salah!', 'error');
@@ -54,23 +161,10 @@ function handleLogin(event) {
 }
 
 function logout() {
-    localStorage.removeItem('admin_session');
-    showLogin();
-    showToast('Logout berhasil!', 'success');
-}
-
-function getSession() {
-    try {
-        const session = localStorage.getItem('admin_session');
-        return session ? JSON.parse(session) : null;
-    } catch (error) {
-        return null;
-    }
-}
-
-function showLogin() {
+    localStorage.removeItem('adminLoggedIn');
     document.getElementById('loginContainer').style.display = 'flex';
     document.getElementById('adminContainer').style.display = 'none';
+    showToast('Logout berhasil!', 'success');
 }
 
 function showAdminPanel() {
@@ -78,276 +172,200 @@ function showAdminPanel() {
     document.getElementById('adminContainer').style.display = 'flex';
 }
 
-// Navigation functions
-function showSection(sectionName) {
-    // Update navigation
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    
-    event.target.closest('.nav-item').classList.add('active');
-    
-    // Update content sections
-    document.querySelectorAll('.content-section').forEach(section => {
-        section.classList.remove('active');
-    });
-    
-    document.getElementById(sectionName).classList.add('active');
-    
-    // Update page title
-    const titles = {
-        dashboard: 'Dashboard',
-        categories: 'Kelola Kategori',
-        packages: 'Kelola Paket',
-        transactions: 'Kelola Transaksi',
-        settings: 'Pengaturan Aplikasi'
-    };
-    
-    document.getElementById('pageTitle').textContent = titles[sectionName];
-    currentSection = sectionName;
-    
-    // Load section data
-    switch(sectionName) {
-        case 'dashboard':
-            loadDashboardData();
-            break;
-        case 'categories':
-            loadCategories();
-            break;
-        case 'packages':
-            loadPackages();
-            break;
-        case 'transactions':
-            loadTransactions();
-            break;
-        case 'settings':
-            loadSettings();
-            break;
-    }
-}
+// =================== DATA LOADING ===================
 
-// Dashboard functions
-async function loadDashboardData() {
+async function loadAllData() {
     try {
         showLoading(true);
         
-        // Load all data
-        await Promise.all([
-            loadCategories(),
-            loadPackages(),
-            loadTransactions(),
-            loadSettings()
+        // Load all data simultaneously
+        const [categoriesResult, packagesResult, transactionsResult, settingsResult] = await Promise.all([
+            adminAPI.getCategories().catch(e => ({ data: [] })),
+            adminAPI.getPackages().catch(e => ({ data: [] })),
+            adminAPI.getTransactions().catch(e => ({ data: [] })),
+            adminAPI.getSettings().catch(e => ({ data: {} }))
         ]);
         
-        updateDashboardStats();
-        updateDashboardCharts();
-        updateRecentActivities();
+        // Update global data
+        adminData.categories = categoriesResult.data || [];
+        adminData.packages = packagesResult.data || [];
+        adminData.transactions = transactionsResult.data || [];
+        adminData.settings = settingsResult.data || {};
         
-        showLoading(false);
+        // Render all sections
+        renderDashboard();
+        renderCategories();
+        renderPackages();
+        renderTransactions();
+        renderSettings();
+        
+        console.log('✅ All admin data loaded successfully');
+        showToast('Data berhasil dimuat!', 'success');
+        
     } catch (error) {
-        console.error('Error loading dashboard data:', error);
-        showToast('Gagal memuat data dashboard', 'error');
+        console.error('❌ Error loading admin data:', error);
+        showToast('Gagal memuat data: ' + error.message, 'error');
+        
+        // Load demo data if API fails
+        loadDemoAdminData();
+    } finally {
         showLoading(false);
     }
 }
 
-function updateDashboardStats() {
+function loadDemoAdminData() {
+    console.log('📋 Loading demo admin data...');
+    
+    adminData = {
+        categories: [
+            { id: 1, name: 'Official XL / AXIS', slug: 'official-xl-axis', description: 'Paket resmi XL dan AXIS', icon: 'fas fa-star', status: 'active' },
+            { id: 2, name: 'XL Circle', slug: 'xl-circle', description: 'Paket premium XL Circle', icon: 'fas fa-users', status: 'active' }
+        ],
+        packages: [
+            { id: 1, category_id: 1, name: 'XL Combo 10GB', quota: '10GB', price: 50000, validity: '30 hari', description: 'Paket internet 10GB', is_popular: true, status: 'active' }
+        ],
+        transactions: [
+            { id: 1, package_id: 1, phone_number: '081234567890', amount: 50000, payment_method: 'qris', status: 'pending', created_at: new Date().toISOString() }
+        ],
+        settings: {
+            app_name: 'MyQuota',
+            maintenance_mode: false,
+            admin_whatsapp: '6281234567890',
+            qris_image_url: '',
+            dana_link: ''
+        }
+    };
+    
+    renderDashboard();
+    renderCategories();
+    renderPackages();
+    renderTransactions();
+    renderSettings();
+}
+
+// =================== DASHBOARD ===================
+
+function renderDashboard() {
     // Update statistics
-    document.getElementById('totalCategories').textContent = categories.filter(c => c.status === 'active').length;
-    document.getElementById('totalPackages').textContent = packages.filter(p => p.status === 'active').length;
-    document.getElementById('totalTransactions').textContent = transactions.length;
+    document.getElementById('totalCategories').textContent = adminData.categories.length;
+    document.getElementById('totalPackages').textContent = adminData.packages.length;
+    document.getElementById('totalTransactions').textContent = adminData.transactions.length;
     
     // Calculate total revenue
-    const totalRevenue = transactions
+    const totalRevenue = adminData.transactions
         .filter(t => t.status === 'completed')
-        .reduce((sum, t) => sum + (t.amount || 0), 0);
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+    document.getElementById('totalRevenue').textContent = `Rp ${totalRevenue.toLocaleString('id-ID')}`;
     
-    document.getElementById('totalRevenue').textContent = formatCurrency(totalRevenue);
+    // Render recent activities
+    renderRecentActivities();
+    renderPopularPackages();
 }
 
-function updateDashboardCharts() {
-    // Update popular packages
-    const packageStats = packages.map(pkg => {
-        const transactionCount = transactions.filter(t => t.package_id === pkg.id).length;
-        return {
-            name: pkg.name,
-            count: transactionCount,
-            quota: pkg.quota
-        };
-    }).sort((a, b) => b.count - a.count).slice(0, 5);
-    
-    const popularPackagesDiv = document.getElementById('popularPackages');
-    popularPackagesDiv.innerHTML = '';
-    
-    if (packageStats.length === 0) {
-        popularPackagesDiv.innerHTML = '<p class="text-muted">Belum ada data transaksi</p>';
-        return;
-    }
-    
-    packageStats.forEach(pkg => {
-        const item = document.createElement('div');
-        item.className = 'popular-item';
-        item.innerHTML = `
-            <div>
-                <h4>${pkg.name}</h4>
-                <p>${pkg.quota}</p>
-            </div>
-            <div class="popular-count">${pkg.count}</div>
-        `;
-        popularPackagesDiv.appendChild(item);
-    });
-}
-
-function updateRecentActivities() {
-    const recentActivitiesDiv = document.getElementById('recentActivities');
-    
-    // Get recent transactions
-    const recentTransactions = transactions
+function renderRecentActivities() {
+    const container = document.getElementById('recentActivities');
+    const recentTransactions = adminData.transactions
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 5);
     
-    recentActivitiesDiv.innerHTML = '';
-    
     if (recentTransactions.length === 0) {
-        recentActivitiesDiv.innerHTML = '<p class="text-muted">Belum ada aktivitas terbaru</p>';
+        container.innerHTML = '<p class="empty-message">Belum ada aktivitas terbaru</p>';
         return;
     }
     
-    recentTransactions.forEach(transaction => {
-        const pkg = packages.find(p => p.id === transaction.package_id);
-        const activity = document.createElement('div');
-        activity.className = 'activity-item';
+    container.innerHTML = recentTransactions.map(transaction => {
+        const package_ = adminData.packages.find(p => p.id === transaction.package_id);
+        const packageName = package_ ? package_.name : 'Unknown Package';
         
-        const iconClass = transaction.status === 'completed' ? 'fas fa-check' : 
-                         transaction.status === 'pending' ? 'fas fa-clock' : 'fas fa-times';
-        const iconColor = transaction.status === 'completed' ? '#28a745' : 
-                         transaction.status === 'pending' ? '#ffc107' : '#dc3545';
-        
-        activity.innerHTML = `
-            <div class="activity-icon" style="background: ${iconColor}">
-                <i class="${iconClass}"></i>
-            </div>
-            <div class="activity-info">
-                <h4>Transaksi ${pkg ? pkg.name : 'Unknown'}</h4>
-                <p>${transaction.phone_number} - ${formatCurrency(transaction.amount)}</p>
-            </div>
-            <div class="activity-time">
-                ${formatTimeAgo(transaction.created_at)}
+        return `
+            <div class="activity-item">
+                <div class="activity-icon">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <div class="activity-details">
+                    <h4>Transaksi Baru</h4>
+                    <p>${packageName} - ${transaction.phone_number}</p>
+                    <small>${new Date(transaction.created_at).toLocaleString('id-ID')}</small>
+                </div>
+                <div class="activity-status status-${transaction.status}">
+                    ${transaction.status}
+                </div>
             </div>
         `;
-        
-        recentActivitiesDiv.appendChild(activity);
-    });
+    }).join('');
 }
 
-// Categories management
-async function loadCategories() {
-    try {
-        // Simulate loading from Google Sheets
-        // In real implementation, use SheetsAPI.readData(CONFIG.SHEETS.CATEGORIES)
-        
-        if (categories.length === 0) {
-            // Load default categories
-            categories = [
-                {
-                    id: 1,
-                    name: 'Official XL / AXIS',
-                    slug: 'official-xl-axis',
-                    description: 'Paket resmi XL dan AXIS dengan kualitas terjamin',
-                    icon: 'fas fa-star',
-                    status: 'active',
-                    created_at: new Date().toISOString()
-                },
-                {
-                    id: 2,
-                    name: 'XL Circle',
-                    slug: 'xl-circle',
-                    description: 'Paket premium XL Circle untuk pengguna VIP',
-                    icon: 'fas fa-users',
-                    status: 'active',
-                    created_at: new Date().toISOString()
-                },
-                {
-                    id: 3,
-                    name: 'Paket Harian',
-                    slug: 'paket-harian',
-                    description: 'Paket internet harian untuk kebutuhan sehari-hari',
-                    icon: 'fas fa-calendar-day',
-                    status: 'active',
-                    created_at: new Date().toISOString()
-                },
-                {
-                    id: 4,
-                    name: 'Perpanjangan Masa Aktif',
-                    slug: 'perpanjangan-masa-aktif',
-                    description: 'Perpanjangan masa aktif kartu tanpa kuota internet',
-                    icon: 'fas fa-clock',
-                    status: 'active',
-                    created_at: new Date().toISOString()
-                }
-            ];
-        }
-        
-        if (currentSection === 'categories') {
-            renderCategoriesTable();
-        }
-        
-        // Update package category dropdown
-        updatePackageCategoryDropdown();
-        
-    } catch (error) {
-        console.error('Error loading categories:', error);
-        throw error;
-    }
-}
-
-function renderCategoriesTable() {
-    const tbody = document.getElementById('categoriesTable');
-    tbody.innerHTML = '';
+function renderPopularPackages() {
+    const container = document.getElementById('popularPackages');
+    const popularPackages = adminData.packages
+        .filter(p => p.is_popular)
+        .slice(0, 5);
     
-    categories.forEach(category => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
+    if (popularPackages.length === 0) {
+        container.innerHTML = '<p class="empty-message">Belum ada paket populer</p>';
+        return;
+    }
+    
+    container.innerHTML = popularPackages.map(package_ => `
+        <div class="popular-package-item">
+            <div class="package-name">${package_.name}</div>
+            <div class="package-price">Rp ${Number(package_.price).toLocaleString('id-ID')}</div>
+        </div>
+    `).join('');
+}
+
+// =================== CATEGORIES MANAGEMENT ===================
+
+function renderCategories() {
+    const tbody = document.getElementById('categoriesTable');
+    
+    if (adminData.categories.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-message">Belum ada kategori</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = adminData.categories.map(category => `
+        <tr>
             <td>${category.id}</td>
             <td>${category.name}</td>
             <td>${category.slug}</td>
             <td><i class="${category.icon}"></i></td>
             <td><span class="status-badge status-${category.status}">${category.status}</span></td>
             <td>
-                <div class="action-buttons">
-                    <button class="btn btn-sm btn-warning" onclick="editCategory(${category.id})">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-sm btn-danger" onclick="deleteCategory(${category.id})">
-                        <i class="fas fa-trash"></i> Hapus
-                    </button>
-                </div>
+                <button class="btn-icon" onclick="editCategory(${category.id})" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-icon btn-danger" onclick="deleteCategory(${category.id})" title="Hapus">
+                    <i class="fas fa-trash"></i>
+                </button>
             </td>
-        `;
-        tbody.appendChild(row);
-    });
+        </tr>
+    `).join('');
+    
+    // Update package category options
+    updatePackageCategoryOptions();
 }
 
 function showAddCategoryModal() {
-    isEditMode = false;
-    editingId = null;
+    currentEditingId = null;
+    currentEditingType = 'category';
     
     document.getElementById('categoryModalTitle').textContent = 'Tambah Kategori';
     document.getElementById('categoryForm').reset();
     document.getElementById('addCategoryModal').classList.add('active');
 }
 
-function editCategory(categoryId) {
-    const category = categories.find(c => c.id === categoryId);
+function editCategory(id) {
+    const category = adminData.categories.find(c => c.id === id);
     if (!category) return;
     
-    isEditMode = true;
-    editingId = categoryId;
+    currentEditingId = id;
+    currentEditingType = 'category';
     
     document.getElementById('categoryModalTitle').textContent = 'Edit Kategori';
     document.getElementById('categoryName').value = category.name;
     document.getElementById('categorySlug').value = category.slug;
-    document.getElementById('categoryDescription').value = category.description;
+    document.getElementById('categoryDescription').value = category.description || '';
     document.getElementById('categoryIcon').value = category.icon;
     document.getElementById('categoryStatus').value = category.status;
     
@@ -357,476 +375,303 @@ function editCategory(categoryId) {
 async function saveCategory(event) {
     event.preventDefault();
     
+    const categoryData = {
+        name: document.getElementById('categoryName').value,
+        slug: document.getElementById('categorySlug').value,
+        description: document.getElementById('categoryDescription').value,
+        icon: document.getElementById('categoryIcon').value,
+        status: document.getElementById('categoryStatus').value
+    };
+    
     try {
         showLoading(true);
         
-        const formData = {
-            name: document.getElementById('categoryName').value,
-            slug: document.getElementById('categorySlug').value,
-            description: document.getElementById('categoryDescription').value,
-            icon: document.getElementById('categoryIcon').value,
-            status: document.getElementById('categoryStatus').value
-        };
-        
-        if (isEditMode) {
+        if (currentEditingId) {
             // Update existing category
-            const categoryIndex = categories.findIndex(c => c.id === editingId);
-            if (categoryIndex !== -1) {
-                categories[categoryIndex] = {
-                    ...categories[categoryIndex],
-                    ...formData,
-                    updated_at: new Date().toISOString()
-                };
+            await adminAPI.updateCategory(currentEditingId, categoryData);
+            
+            // Update local data
+            const index = adminData.categories.findIndex(c => c.id === currentEditingId);
+            if (index !== -1) {
+                adminData.categories[index] = { ...adminData.categories[index], ...categoryData };
             }
             
             showToast('Kategori berhasil diperbarui!', 'success');
         } else {
             // Add new category
-            const newCategory = {
-                id: Math.max(...categories.map(c => c.id), 0) + 1,
-                ...formData,
-                created_at: new Date().toISOString()
-            };
+            const result = await adminAPI.addCategory(categoryData);
             
-            categories.push(newCategory);
+            // Add to local data
+            const newCategory = { 
+                id: result.data?.id || Date.now(), 
+                ...categoryData 
+            };
+            adminData.categories.push(newCategory);
+            
             showToast('Kategori berhasil ditambahkan!', 'success');
         }
         
-        // In real implementation, save to Google Sheets here
-        // await SheetsAPI.writeData(CONFIG.SHEETS.CATEGORIES, categoriesToSheetData(categories));
-        
-        renderCategoriesTable();
-        updatePackageCategoryDropdown();
+        renderCategories();
+        renderDashboard();
         closeModal('addCategoryModal');
-        showLoading(false);
         
     } catch (error) {
-        console.error('Error saving category:', error);
-        showToast('Gagal menyimpan kategori', 'error');
+        console.error('❌ Error saving category:', error);
+        showToast('Gagal menyimpan kategori: ' + error.message, 'error');
+    } finally {
         showLoading(false);
     }
 }
 
-function deleteCategory(categoryId) {
+async function deleteCategory(id) {
     if (!confirm('Apakah Anda yakin ingin menghapus kategori ini?')) return;
     
     try {
-        const categoryIndex = categories.findIndex(c => c.id === categoryId);
-        if (categoryIndex !== -1) {
-            categories.splice(categoryIndex, 1);
-            renderCategoriesTable();
-            updatePackageCategoryDropdown();
-            showToast('Kategori berhasil dihapus!', 'success');
-            
-            // In real implementation, update Google Sheets here
-        }
+        showLoading(true);
+        
+        await adminAPI.deleteCategory(id);
+        
+        // Remove from local data
+        adminData.categories = adminData.categories.filter(c => c.id !== id);
+        
+        renderCategories();
+        renderDashboard();
+        showToast('Kategori berhasil dihapus!', 'success');
+        
     } catch (error) {
-        console.error('Error deleting category:', error);
-        showToast('Gagal menghapus kategori', 'error');
+        console.error('❌ Error deleting category:', error);
+        showToast('Gagal menghapus kategori: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
     }
 }
 
-// Packages management
-async function loadPackages() {
-    try {
-        if (packages.length === 0) {
-            // Load default packages
-            packages = [
-                {
-                    id: 1,
-                    category_id: 1,
-                    name: 'XL Combo 10GB',
-                    quota: '10GB',
-                    price: 50000,
-                    validity: '30 hari',
-                    description: 'Paket internet 10GB dengan bonus telpon dan SMS unlimited ke sesama XL',
-                    is_popular: true,
-                    status: 'active',
-                    created_at: new Date().toISOString()
-                },
-                {
-                    id: 2,
-                    category_id: 1,
-                    name: 'AXIS Bronet 5GB',
-                    quota: '5GB',
-                    price: 25000,
-                    validity: '30 hari',
-                    description: 'Paket internet 5GB untuk kebutuhan browsing dan media sosial',
-                    is_popular: false,
-                    status: 'active',
-                    created_at: new Date().toISOString()
-                },
-                {
-                    id: 3,
-                    category_id: 2,
-                    name: 'XL Circle 15GB',
-                    quota: '15GB',
-                    price: 75000,
-                    validity: '30 hari',
-                    description: 'Paket premium XL Circle dengan kuota besar dan kecepatan tinggi',
-                    is_popular: true,
-                    status: 'active',
-                    created_at: new Date().toISOString()
-                },
-                {
-                    id: 4,
-                    category_id: 3,
-                    name: 'Paket Harian 1GB',
-                    quota: '1GB',
-                    price: 5000,
-                    validity: '1 hari',
-                    description: 'Paket internet harian 1GB untuk kebutuhan sehari-hari',
-                    is_popular: false,
-                    status: 'active',
-                    created_at: new Date().toISOString()
-                },
-                {
-                    id: 5,
-                    category_id: 4,
-                    name: 'Perpanjangan 30 Hari',
-                    quota: 'Masa Aktif',
-                    price: 10000,
-                    validity: '30 hari',
-                    description: 'Perpanjangan masa aktif kartu tanpa kuota internet',
-                    is_popular: false,
-                    status: 'active',
-                    created_at: new Date().toISOString()
-                }
-            ];
-        }
-        
-        if (currentSection === 'packages') {
-            renderPackagesTable();
-        }
-        
-    } catch (error) {
-        console.error('Error loading packages:', error);
-        throw error;
-    }
-}
+// =================== PACKAGES MANAGEMENT ===================
 
-function renderPackagesTable() {
+function renderPackages() {
     const tbody = document.getElementById('packagesTable');
-    tbody.innerHTML = '';
     
-    packages.forEach(pkg => {
-        const category = categories.find(c => c.id === pkg.category_id);
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${pkg.id}</td>
-            <td>${pkg.name}</td>
-            <td>${category ? category.name : 'Unknown'}</td>
-            <td>${pkg.quota}</td>
-            <td>${formatCurrency(pkg.price)}</td>
-            <td>${pkg.validity}</td>
-            <td>
-                <span class="status-badge status-${pkg.status}">${pkg.status}</span>
-                ${pkg.is_popular ? '<span class="status-badge" style="background: #ffc107; color: #333; margin-left: 5px;">Popular</span>' : ''}
-            </td>
-            <td>
-                <div class="action-buttons">
-                    <button class="btn btn-sm btn-warning" onclick="editPackage(${pkg.id})">
-                        <i class="fas fa-edit"></i> Edit
+    if (adminData.packages.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-message">Belum ada paket</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = adminData.packages.map(package_ => {
+        const category = adminData.categories.find(c => c.id === package_.category_id);
+        const categoryName = category ? category.name : 'Unknown';
+        
+        return `
+            <tr>
+                <td>${package_.id}</td>
+                <td>${package_.name}</td>
+                <td>${categoryName}</td>
+                <td>${package_.quota}</td>
+                <td>Rp ${Number(package_.price).toLocaleString('id-ID')}</td>
+                <td>${package_.validity}</td>
+                <td><span class="status-badge status-${package_.status}">${package_.status}</span></td>
+                <td>
+                    <button class="btn-icon" onclick="editPackage(${package_.id})" title="Edit">
+                        <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn btn-sm btn-danger" onclick="deletePackage(${pkg.id})">
-                        <i class="fas fa-trash"></i> Hapus
+                    <button class="btn-icon btn-danger" onclick="deletePackage(${package_.id})" title="Hapus">
+                        <i class="fas fa-trash"></i>
                     </button>
-                </div>
-            </td>
+                </td>
+            </tr>
         `;
-        tbody.appendChild(row);
-    });
+    }).join('');
 }
 
-function updatePackageCategoryDropdown() {
-    const dropdown = document.getElementById('packageCategory');
-    if (!dropdown) return;
-    
-    dropdown.innerHTML = '<option value="">Pilih Kategori</option>';
-    
-    categories.filter(c => c.status === 'active').forEach(category => {
-        const option = document.createElement('option');
-        option.value = category.id;
-        option.textContent = category.name;
-        dropdown.appendChild(option);
-    });
+function updatePackageCategoryOptions() {
+    const select = document.getElementById('packageCategory');
+    select.innerHTML = '<option value="">Pilih Kategori</option>' +
+        adminData.categories.map(category => 
+            `<option value="${category.id}">${category.name}</option>`
+        ).join('');
 }
 
 function showAddPackageModal() {
-    isEditMode = false;
-    editingId = null;
+    currentEditingId = null;
+    currentEditingType = 'package';
     
     document.getElementById('packageModalTitle').textContent = 'Tambah Paket';
     document.getElementById('packageForm').reset();
+    updatePackageCategoryOptions();
     document.getElementById('addPackageModal').classList.add('active');
 }
 
-function editPackage(packageId) {
-    const pkg = packages.find(p => p.id === packageId);
-    if (!pkg) return;
+function editPackage(id) {
+    const package_ = adminData.packages.find(p => p.id === id);
+    if (!package_) return;
     
-    isEditMode = true;
-    editingId = packageId;
+    currentEditingId = id;
+    currentEditingType = 'package';
     
     document.getElementById('packageModalTitle').textContent = 'Edit Paket';
-    document.getElementById('packageCategory').value = pkg.category_id;
-    document.getElementById('packageName').value = pkg.name;
-    document.getElementById('packageQuota').value = pkg.quota;
-    document.getElementById('packagePrice').value = pkg.price;
-    document.getElementById('packageValidity').value = pkg.validity;
-    document.getElementById('packageDescription').value = pkg.description;
-    document.getElementById('packagePopular').checked = pkg.is_popular;
-    document.getElementById('packageStatus').value = pkg.status;
+    document.getElementById('packageCategory').value = package_.category_id;
+    document.getElementById('packageName').value = package_.name;
+    document.getElementById('packageQuota').value = package_.quota;
+    document.getElementById('packagePrice').value = package_.price;
+    document.getElementById('packageValidity').value = package_.validity;
+    document.getElementById('packageDescription').value = package_.description;
+    document.getElementById('packagePopular').checked = package_.is_popular;
+    document.getElementById('packageStatus').value = package_.status;
     
+    updatePackageCategoryOptions();
     document.getElementById('addPackageModal').classList.add('active');
 }
 
 async function savePackage(event) {
     event.preventDefault();
     
+    const packageData = {
+        category_id: parseInt(document.getElementById('packageCategory').value),
+        name: document.getElementById('packageName').value,
+        quota: document.getElementById('packageQuota').value,
+        price: parseInt(document.getElementById('packagePrice').value),
+        validity: document.getElementById('packageValidity').value,
+        description: document.getElementById('packageDescription').value,
+        is_popular: document.getElementById('packagePopular').checked,
+        status: document.getElementById('packageStatus').value
+    };
+    
     try {
         showLoading(true);
         
-        const formData = {
-            category_id: parseInt(document.getElementById('packageCategory').value),
-            name: document.getElementById('packageName').value,
-            quota: document.getElementById('packageQuota').value,
-            price: parseInt(document.getElementById('packagePrice').value),
-            validity: document.getElementById('packageValidity').value,
-            description: document.getElementById('packageDescription').value,
-            is_popular: document.getElementById('packagePopular').checked,
-            status: document.getElementById('packageStatus').value
-        };
-        
-        if (isEditMode) {
+        if (currentEditingId) {
             // Update existing package
-            const packageIndex = packages.findIndex(p => p.id === editingId);
-            if (packageIndex !== -1) {
-                packages[packageIndex] = {
-                    ...packages[packageIndex],
-                    ...formData,
-                    updated_at: new Date().toISOString()
-                };
+            await adminAPI.updatePackage(currentEditingId, packageData);
+            
+            // Update local data
+            const index = adminData.packages.findIndex(p => p.id === currentEditingId);
+            if (index !== -1) {
+                adminData.packages[index] = { ...adminData.packages[index], ...packageData };
             }
             
             showToast('Paket berhasil diperbarui!', 'success');
         } else {
             // Add new package
-            const newPackage = {
-                id: Math.max(...packages.map(p => p.id), 0) + 1,
-                ...formData,
-                created_at: new Date().toISOString()
-            };
+            const result = await adminAPI.addPackage(packageData);
             
-            packages.push(newPackage);
+            // Add to local data
+            const newPackage = { 
+                id: result.data?.id || Date.now(), 
+                ...packageData 
+            };
+            adminData.packages.push(newPackage);
+            
             showToast('Paket berhasil ditambahkan!', 'success');
         }
         
-        // In real implementation, save to Google Sheets here
-        renderPackagesTable();
+        renderPackages();
+        renderDashboard();
         closeModal('addPackageModal');
-        showLoading(false);
         
     } catch (error) {
-        console.error('Error saving package:', error);
-        showToast('Gagal menyimpan paket', 'error');
+        console.error('❌ Error saving package:', error);
+        showToast('Gagal menyimpan paket: ' + error.message, 'error');
+    } finally {
         showLoading(false);
     }
 }
 
-function deletePackage(packageId) {
+async function deletePackage(id) {
     if (!confirm('Apakah Anda yakin ingin menghapus paket ini?')) return;
     
     try {
-        const packageIndex = packages.findIndex(p => p.id === packageId);
-        if (packageIndex !== -1) {
-            packages.splice(packageIndex, 1);
-            renderPackagesTable();
-            showToast('Paket berhasil dihapus!', 'success');
-        }
+        showLoading(true);
+        
+        await adminAPI.deletePackage(id);
+        
+        // Remove from local data
+        adminData.packages = adminData.packages.filter(p => p.id !== id);
+        
+        renderPackages();
+        renderDashboard();
+        showToast('Paket berhasil dihapus!', 'success');
+        
     } catch (error) {
-        console.error('Error deleting package:', error);
-        showToast('Gagal menghapus paket', 'error');
+        console.error('❌ Error deleting package:', error);
+        showToast('Gagal menghapus paket: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
     }
 }
 
-// Transactions management
-async function loadTransactions() {
-    try {
-        if (transactions.length === 0) {
-            // Load sample transactions
-            transactions = [
-                {
-                    id: 1,
-                    transaction_id: 'TRX001',
-                    package_id: 1,
-                    phone_number: '081234567890',
-                    amount: 50000,
-                    status: 'completed',
-                    payment_method: 'qris',
-                    created_at: new Date(Date.now() - 86400000).toISOString() // 1 day ago
-                },
-                {
-                    id: 2,
-                    transaction_id: 'TRX002',
-                    package_id: 2,
-                    phone_number: '081234567891',
-                    amount: 25000,
-                    status: 'pending',
-                    payment_method: 'dana',
-                    created_at: new Date(Date.now() - 3600000).toISOString() // 1 hour ago
-                },
-                {
-                    id: 3,
-                    transaction_id: 'TRX003',
-                    package_id: 3,
-                    phone_number: '081234567892',
-                    amount: 75000,
-                    status: 'completed',
-                    payment_method: 'qris',
-                    created_at: new Date().toISOString()
-                }
-            ];
-        }
-        
-        if (currentSection === 'transactions') {
-            renderTransactionsTable();
-        }
-        
-    } catch (error) {
-        console.error('Error loading transactions:', error);
-        throw error;
-    }
-}
+// =================== TRANSACTIONS MANAGEMENT ===================
 
-function renderTransactionsTable() {
+function renderTransactions() {
     const tbody = document.getElementById('transactionsTable');
-    tbody.innerHTML = '';
     
-    let filteredTransactions = [...transactions];
-    
-    // Apply filters
-    const statusFilter = document.getElementById('statusFilter').value;
-    const dateFilter = document.getElementById('dateFilter').value;
-    
-    if (statusFilter) {
-        filteredTransactions = filteredTransactions.filter(t => t.status === statusFilter);
+    if (adminData.transactions.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-message">Belum ada transaksi</td></tr>';
+        return;
     }
     
-    if (dateFilter) {
-        const filterDate = new Date(dateFilter).toDateString();
-        filteredTransactions = filteredTransactions.filter(t => 
-            new Date(t.created_at).toDateString() === filterDate
-        );
-    }
-    
-    filteredTransactions.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    
-    filteredTransactions.forEach(transaction => {
-        const pkg = packages.find(p => p.id === transaction.package_id);
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${transaction.transaction_id}</td>
-            <td>${pkg ? pkg.name : 'Unknown Package'}</td>
-            <td>${transaction.phone_number}</td>
-            <td>${formatCurrency(transaction.amount)}</td>
-            <td>${transaction.payment_method.toUpperCase()}</td>
-            <td><span class="status-badge status-${transaction.status}">${transaction.status}</span></td>
-            <td>${formatDate(transaction.created_at)}</td>
-            <td>
-                <div class="action-buttons">
-                    ${transaction.status === 'pending' ? `
-                        <button class="btn btn-sm btn-success" onclick="updateTransactionStatus(${transaction.id}, 'completed')">
-                            <i class="fas fa-check"></i> Approve
-                        </button>
-                        <button class="btn btn-sm btn-danger" onclick="updateTransactionStatus(${transaction.id}, 'failed')">
-                            <i class="fas fa-times"></i> Reject
-                        </button>
-                    ` : `
-                        <button class="btn btn-sm btn-outline" onclick="viewTransactionDetails(${transaction.id})">
-                            <i class="fas fa-eye"></i> Detail
-                        </button>
-                    `}
-                </div>
-            </td>
+    tbody.innerHTML = adminData.transactions.map(transaction => {
+        const package_ = adminData.packages.find(p => p.id === transaction.package_id);
+        const packageName = package_ ? package_.name : 'Unknown Package';
+        
+        return `
+            <tr>
+                <td>${transaction.id}</td>
+                <td>${packageName}</td>
+                <td>${transaction.phone_number}</td>
+                <td>Rp ${Number(transaction.amount).toLocaleString('id-ID')}</td>
+                <td>${transaction.payment_method}</td>
+                <td><span class="status-badge status-${transaction.status}">${transaction.status}</span></td>
+                <td>${new Date(transaction.created_at).toLocaleString('id-ID')}</td>
+                <td>
+                    <select onchange="updateTransactionStatus(${transaction.id}, this.value)">
+                        <option value="pending" ${transaction.status === 'pending' ? 'selected' : ''}>Pending</option>
+                        <option value="completed" ${transaction.status === 'completed' ? 'selected' : ''}>Selesai</option>
+                        <option value="failed" ${transaction.status === 'failed' ? 'selected' : ''}>Gagal</option>
+                    </select>
+                </td>
+            </tr>
         `;
-        tbody.appendChild(row);
-    });
-    
-    if (filteredTransactions.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Tidak ada transaksi ditemukan</td></tr>';
+    }).join('');
+}
+
+async function updateTransactionStatus(id, newStatus) {
+    try {
+        showLoading(true);
+        
+        await adminAPI.updateTransactionStatus(id, newStatus);
+        
+        // Update local data
+        const transaction = adminData.transactions.find(t => t.id === id);
+        if (transaction) {
+            transaction.status = newStatus;
+        }
+        
+        renderTransactions();
+        renderDashboard();
+        showToast('Status transaksi berhasil diperbarui!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error updating transaction status:', error);
+        showToast('Gagal memperbarui status transaksi: ' + error.message, 'error');
+        
+        // Revert the select value
+        renderTransactions();
+    } finally {
+        showLoading(false);
     }
 }
 
 function filterTransactions() {
-    renderTransactionsTable();
+    // This function would implement client-side filtering
+    // For now, just render all transactions
+    renderTransactions();
 }
 
-function updateTransactionStatus(transactionId, newStatus) {
-    try {
-        const transactionIndex = transactions.findIndex(t => t.id === transactionId);
-        if (transactionIndex !== -1) {
-            transactions[transactionIndex].status = newStatus;
-            transactions[transactionIndex].updated_at = new Date().toISOString();
-            
-            renderTransactionsTable();
-            updateDashboardStats();
-            
-            const statusText = newStatus === 'completed' ? 'disetujui' : 'ditolak';
-            showToast(`Transaksi berhasil ${statusText}!`, 'success');
-            
-            // In real implementation, update Google Sheets and send notification to customer
-        }
-    } catch (error) {
-        console.error('Error updating transaction status:', error);
-        showToast('Gagal mengupdate status transaksi', 'error');
-    }
-}
+// =================== SETTINGS MANAGEMENT ===================
 
-function viewTransactionDetails(transactionId) {
-    const transaction = transactions.find(t => t.id === transactionId);
-    const pkg = packages.find(p => p.id === transaction.package_id);
+function renderSettings() {
+    const settings = adminData.settings;
     
-    if (!transaction) return;
-    
-    alert(`Detail Transaksi:
-ID: ${transaction.transaction_id}
-Paket: ${pkg ? pkg.name : 'Unknown'}
-No. Telepon: ${transaction.phone_number}
-Jumlah: ${formatCurrency(transaction.amount)}
-Status: ${transaction.status}
-Metode Pembayaran: ${transaction.payment_method}
-Tanggal: ${formatDate(transaction.created_at)}`);
-}
-
-// Settings management
-async function loadSettings() {
-    try {
-        if (Object.keys(settings).length === 0) {
-            // Load default settings
-            settings = {
-                app_name: 'MyQuota',
-                app_version: '1.0.0',
-                maintenance_mode: false,
-                admin_whatsapp: '6281234567890',
-                qris_image_url: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+CODE',
-                dana_link: 'https://link.dana.id/qr/sample',
-                dana_phone: '081234567890'
-            };
-        }
-        
-        if (currentSection === 'settings') {
-            populateSettingsForm();
-        }
-        
-    } catch (error) {
-        console.error('Error loading settings:', error);
-        throw error;
-    }
-}
-
-function populateSettingsForm() {
-    document.getElementById('appName').value = settings.app_name || '';
+    document.getElementById('appName').value = settings.app_name || 'MyQuota';
     document.getElementById('maintenanceMode').checked = settings.maintenance_mode || false;
     document.getElementById('adminWhatsapp').value = settings.admin_whatsapp || '';
     document.getElementById('qrisImageUrl').value = settings.qris_image_url || '';
@@ -835,61 +680,82 @@ function populateSettingsForm() {
 }
 
 async function saveSettings() {
+    const settingsData = {
+        app_name: document.getElementById('appName').value,
+        maintenance_mode: document.getElementById('maintenanceMode').checked,
+        admin_whatsapp: document.getElementById('adminWhatsapp').value,
+        qris_image_url: document.getElementById('qrisImageUrl').value,
+        dana_link: document.getElementById('danaLink').value,
+        dana_phone: document.getElementById('danaPhone').value
+    };
+    
     try {
         showLoading(true);
         
-        settings = {
-            ...settings,
-            app_name: document.getElementById('appName').value,
-            maintenance_mode: document.getElementById('maintenanceMode').checked,
-            admin_whatsapp: document.getElementById('adminWhatsapp').value,
-            qris_image_url: document.getElementById('qrisImageUrl').value,
-            dana_link: document.getElementById('danaLink').value,
-            dana_phone: document.getElementById('danaPhone').value,
-            updated_at: new Date().toISOString()
-        };
+        await adminAPI.updateSettings(settingsData);
         
-        // In real implementation, save to Google Sheets here
+        // Update local data
+        adminData.settings = { ...adminData.settings, ...settingsData };
+        
         showToast('Pengaturan berhasil disimpan!', 'success');
-        showLoading(false);
         
     } catch (error) {
-        console.error('Error saving settings:', error);
-        showToast('Gagal menyimpan pengaturan', 'error');
+        console.error('❌ Error saving settings:', error);
+        showToast('Gagal menyimpan pengaturan: ' + error.message, 'error');
+    } finally {
         showLoading(false);
     }
 }
 
 function resetSettings() {
-    if (!confirm('Apakah Anda yakin ingin mereset pengaturan ke default?')) return;
+    if (!confirm('Apakah Anda yakin ingin reset pengaturan ke default?')) return;
     
-    settings = {
-        app_name: 'MyQuota',
-        maintenance_mode: false,
-        admin_whatsapp: '6281234567890',
-        qris_image_url: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+CODE',
-        dana_link: 'https://link.dana.id/qr/sample',
-        dana_phone: '081234567890'
-    };
+    document.getElementById('appName').value = 'MyQuota';
+    document.getElementById('maintenanceMode').checked = false;
+    document.getElementById('adminWhatsapp').value = '';
+    document.getElementById('qrisImageUrl').value = '';
+    document.getElementById('danaLink').value = '';
+    document.getElementById('danaPhone').value = '';
     
-    populateSettingsForm();
-    showToast('Pengaturan berhasil direset!', 'success');
+    showToast('Pengaturan telah direset!', 'success');
 }
 
-// Utility functions
-function refreshData() {
-    loadDashboardData();
-    showToast('Data berhasil direfresh!', 'success');
+// =================== UI HELPERS ===================
+
+function showSection(sectionName) {
+    // Update navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    event.currentTarget.classList.add('active');
+    
+    // Update page title
+    const titles = {
+        dashboard: 'Dashboard',
+        categories: 'Kelola Kategori',
+        packages: 'Kelola Paket',
+        transactions: 'Kelola Transaksi',
+        settings: 'Pengaturan Aplikasi'
+    };
+    document.getElementById('pageTitle').textContent = titles[sectionName] || sectionName;
+    
+    // Show section
+    document.querySelectorAll('.content-section').forEach(section => {
+        section.classList.remove('active');
+    });
+    document.getElementById(sectionName).classList.add('active');
 }
 
 function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
+    currentEditingId = null;
+    currentEditingType = null;
 }
 
 function showLoading(show) {
-    const loadingOverlay = document.getElementById('loadingOverlay');
-    if (loadingOverlay) {
-        loadingOverlay.classList.toggle('active', show);
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.style.display = show ? 'flex' : 'none';
     }
 }
 
@@ -908,77 +774,40 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-function formatCurrency(amount) {
-    return new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0
-    }).format(amount);
+async function refreshData() {
+    showToast('Memperbarui data...', 'info');
+    await loadAllData();
 }
 
-function formatDate(dateString) {
-    return new Date(dateString).toLocaleDateString('id-ID', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
+// =================== GLOBAL EXPORTS ===================
 
-function formatTimeAgo(dateString) {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffInSeconds = Math.floor((now - date) / 1000);
-    
-    if (diffInSeconds < 60) return 'Baru saja';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} menit lalu`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} jam lalu`;
-    return `${Math.floor(diffInSeconds / 86400)} hari lalu`;
-}
-
-// Auto-generate slug from name
-document.addEventListener('DOMContentLoaded', function() {
-    const categoryNameInput = document.getElementById('categoryName');
-    const categorySlugInput = document.getElementById('categorySlug');
-    
-    if (categoryNameInput && categorySlugInput) {
-        categoryNameInput.addEventListener('input', function() {
-            if (!isEditMode) {
-                const slug = this.value
-                    .toLowerCase()
-                    .replace(/[^a-z0-9 ]/g, '')
-                    .replace(/\s+/g, '-');
-                categorySlugInput.value = slug;
-            }
-        });
-    }
-});
-
-// Close modal when clicking outside
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('modal')) {
-        e.target.classList.remove('active');
-    }
-});
-
-// Export functions for global access
-window.showSection = showSection;
+// Make functions globally accessible
 window.handleLogin = handleLogin;
 window.logout = logout;
+window.showSection = showSection;
 window.refreshData = refreshData;
+
+// Category functions
 window.showAddCategoryModal = showAddCategoryModal;
-window.showAddPackageModal = showAddPackageModal;
 window.editCategory = editCategory;
-window.editPackage = editPackage;
-window.deleteCategory = deleteCategory;
-window.deletePackage = deletePackage;
 window.saveCategory = saveCategory;
+window.deleteCategory = deleteCategory;
+
+// Package functions
+window.showAddPackageModal = showAddPackageModal;
+window.editPackage = editPackage;
 window.savePackage = savePackage;
-window.filterTransactions = filterTransactions;
+window.deletePackage = deletePackage;
+
+// Transaction functions
 window.updateTransactionStatus = updateTransactionStatus;
-window.viewTransactionDetails = viewTransactionDetails;
+window.filterTransactions = filterTransactions;
+
+// Settings functions
 window.saveSettings = saveSettings;
 window.resetSettings = resetSettings;
+
+// Modal functions
 window.closeModal = closeModal;
+
+console.log('✅ Admin panel script loaded successfully');
