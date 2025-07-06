@@ -20,7 +20,7 @@ let currentEditingType = null;
 
 // API Configuration - pastikan ini sesuai dengan config.js atau hardcode
 const ADMIN_API_CONFIG = {
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZrXoIqE27I-893nCt5FrxfWHmCy6M7B56vPT-hgp_HShUhLPMZFDDP1HSlkvcoSg7Kg/exec',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwC7R0JGrhGZO2rLpYM9HNFU-kollHgJmTBQGmBTIGY04bbb_nSxs0Ekca519mQF3qo5g/exec',
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3
 };
