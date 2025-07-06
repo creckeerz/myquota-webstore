@@ -1,40 +1,23 @@
+// Configuration
 const CONFIG = {
-    SPREADSHEET_ID: '17nzzFZwcFDUu-ywZGrp-d7_jIuohPv4N1dB_qpCls6Y',
-    API_KEY: 'AIzaSyBiRSNnRLRYO5sUIaQdqAYLreSM2nQoG1E',
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec', // Tambahkan ini
-    DANA_API_URL: 'https://link.dana.id/qr/YOUR_DANA_ID',
-    DANA_PHONE: '081234567890',
-    QRIS_IMAGE_URL: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+CODE'
+    SPREADSHEET_ID: '17nzzFZwcFDUu-ywZGrp-d7_jIuohPv4N1dB_qpCls6Y', // Ganti dengan ID spreadsheet Anda
+    API_KEY: 'AIzaSyBiRSNnRLRYO5sUIaQdqAYLreSM2nQoG1E', // Ganti dengan API key Google Sheets Anda
+    DANA_API_URL: 'https://link.dana.id/qr/YOUR_DANA_ID', // Ganti dengan URL DANA Anda
+    DANA_PHONE: '081234567890', // Ganti dengan nomor DANA admin
+    QRIS_IMAGE_URL: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+CODE' // Ganti dengan URL gambar QRIS
 };
-
-
-// MyQuota WebStore - Frontend JavaScript with Apps Script Integration
 
 // Global variables
 let categories = [];
 let packages = [];
+let transactions = [];
+let settings = {};
 let selectedCategory = null;
 let selectedPackage = null;
 let selectedPayment = null;
 let currentSort = 'price';
 let sortOrder = 'asc';
 let searchQuery = '';
-
-
-const API = {
-    async getCategories() {
-        const res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=categories`);
-        if (!res.ok) throw new Error('Gagal mengambil data kategori');
-        return await res.json();
-    },
-    async getPackages() {
-        const res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=packages`);
-        if (!res.ok) throw new Error('Gagal mengambil data paket');
-        return await res.json();
-    }
-};
-
-
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
@@ -45,145 +28,18 @@ document.addEventListener('DOMContentLoaded', function() {
 async function initializeApp() {
     try {
         showLoading(true);
-
-        if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.includes('YOUR_WEB_APP_URL')) {
-            showToast('Backend belum dikonfigurasi. Menggunakan data demo.', 'warning');
-            await loadDemoData();
-        } else {
-            await loadDataFromAPI();
-        }
-
+        await loadCategories();
+        await loadPackages();
+        await loadSettings();
         setupEventListeners();
         renderCategories();
         renderPackages();
-        
+        showLoading(false);
     } catch (error) {
         console.error('Error initializing app:', error);
-        showToast('Gagal memuat data. Menggunakan data demo.', 'warning');
-        await loadDemoData();
-        setupEventListeners();
-        renderCategories();
-        renderPackages();
-    } finally {
+        showToast('Gagal memuat aplikasi', 'error');
         showLoading(false);
     }
-}
-
-// Load data from Google Apps Script
-async function loadDataFromAPI() {
-    try {
-        const [categoriesResult, packagesResult] = await Promise.all([
-            API.getCategories(),
-            API.getPackages()
-        ]);
-
-        categories = categoriesResult.data || [];
-        packages = packagesResult.data || [];
-
-        console.log('Data loaded from API:', { categories: categories.length, packages: packages.length });
-
-    } catch (error) {
-        console.error('Error loading data from API:', error);
-        throw error;
-    }
-}
-
-
-
-// Load demo data (fallback)
-async function loadDemoData() {
-    categories = [
-        {
-            id: 1,
-            name: 'Official XL / AXIS',
-            slug: 'official-xl-axis',
-            description: 'Paket resmi XL dan AXIS dengan kualitas terjamin',
-            icon: 'fas fa-star',
-            status: 'active'
-        },
-        {
-            id: 2,
-            name: 'XL Circle',
-            slug: 'xl-circle',
-            description: 'Paket premium XL Circle untuk pengguna VIP',
-            icon: 'fas fa-users',
-            status: 'active'
-        },
-        {
-            id: 3,
-            name: 'Paket Harian',
-            slug: 'paket-harian',
-            description: 'Paket internet harian untuk kebutuhan sehari-hari',
-            icon: 'fas fa-calendar-day',
-            status: 'active'
-        },
-        {
-            id: 4,
-            name: 'Perpanjangan Masa Aktif',
-            slug: 'perpanjangan-masa-aktif',
-            description: 'Perpanjangan masa aktif kartu tanpa kuota internet',
-            icon: 'fas fa-clock',
-            status: 'active'
-        }
-    ];
-    
-    packages = [
-        {
-            id: 1,
-            category_id: 1,
-            name: 'XL Combo 10GB',
-            quota: '10GB',
-            price: 50000,
-            validity: '30 hari',
-            description: 'Paket internet 10GB dengan bonus telpon dan SMS unlimited ke sesama XL',
-            is_popular: true,
-            status: 'active'
-        },
-        {
-            id: 2,
-            category_id: 1,
-            name: 'AXIS Bronet 5GB',
-            quota: '5GB',
-            price: 25000,
-            validity: '30 hari',
-            description: 'Paket internet 5GB untuk kebutuhan browsing dan media sosial',
-            is_popular: false,
-            status: 'active'
-        },
-        {
-            id: 3,
-            category_id: 2,
-            name: 'XL Circle 15GB',
-            quota: '15GB',
-            price: 75000,
-            validity: '30 hari',
-            description: 'Paket premium XL Circle dengan kuota besar dan kecepatan tinggi',
-            is_popular: true,
-            status: 'active'
-        },
-        {
-            id: 4,
-            category_id: 3,
-            name: 'Paket Harian 1GB',
-            quota: '1GB',
-            price: 5000,
-            validity: '1 hari',
-            description: 'Paket internet harian 1GB untuk kebutuhan sehari-hari',
-            is_popular: false,
-            status: 'active'
-        },
-        {
-            id: 5,
-            category_id: 4,
-            name: 'Perpanjangan 30 Hari',
-            quota: 'Masa Aktif',
-            price: 10000,
-            validity: '30 hari',
-            description: 'Perpanjangan masa aktif kartu tanpa kuota internet',
-            is_popular: false,
-            status: 'active'
-        }
-    ];
 }
 
 // Setup event listeners
@@ -191,10 +47,10 @@ function setupEventListeners() {
     // Search input
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
-        searchInput.addEventListener('input', debounce(function() {
+        searchInput.addEventListener('input', function() {
             searchQuery = this.value.toLowerCase();
-            renderPackages();
-        }, 300));
+            filterPackages();
+        });
     }
 
     // Phone number input formatting
@@ -221,6 +77,7 @@ function setupEventListeners() {
         item.addEventListener('click', function(e) {
             e.preventDefault();
             navItems.forEach(nav => nav.classList.remove('active'));
+            this.classList.add('active');
         });
     });
 }
