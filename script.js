@@ -1,6 +1,6 @@
-// =================== KONFIGURASI API ===================
+// =================== KONFIGURASI API - CORS FIX ===================
 const API_CONFIG = {
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZrXoIqE27I-893nCt5FrxfWHmCy6M7B56vPT-hgp_HShUhLPMZFDDP1HSlkvcoSg7Kg/exec',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwC7R0JGrhGZO2rLpYM9HNFU-kollHgJmTBQGmBTIGY04bbb_nSxs0Ekca519mQF3qo5g/exec',
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3
 };
@@ -11,7 +11,7 @@ console.log('🔧 API Configuration:', {
     timestamp: new Date()
 });
 
-// =================== API CLIENT CLASS ===================
+// =================== API CLIENT CLASS - CORS FIX ===================
 class MyQuotaAPI {
     constructor(baseUrl) {
         this.baseUrl = baseUrl;
@@ -20,24 +20,27 @@ class MyQuotaAPI {
     
     async callAPI(action, data = null, id = null) {
         try {
-            const url = new URL(this.baseUrl);
-            url.searchParams.append('action', action);
+            // CORS Fix: Use POST instead of GET for Apps Script
+            const formData = new FormData();
+            formData.append('action', action);
             
             if (data) {
-                url.searchParams.append('data', JSON.stringify(data));
+                formData.append('data', JSON.stringify(data));
             }
             
             if (id) {
-                url.searchParams.append('id', id);
+                formData.append('id', id);
             }
             
-            console.log('🔄 API Call:', action, data ? 'with data' : 'no data');
+            console.log('🔄 API Call (POST):', action, data ? 'with data' : 'no data');
             
-            const response = await fetch(url.toString(), {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
+            const response = await fetch(this.baseUrl, {
+                method: 'POST',
+                body: formData,
+                // Don't set Content-Type header, let browser set it for FormData
+                mode: 'cors', // Explicitly set CORS mode
+                credentials: 'omit', // Don't send credentials
+                redirect: 'follow'
             });
             
             if (!response.ok) {
@@ -55,8 +58,69 @@ class MyQuotaAPI {
             
         } catch (error) {
             console.error('❌ API Error:', action, error.message);
+            
+            // CORS Fallback: Try JSONP approach
+            if (error.message.includes('CORS') || error.message.includes('fetch')) {
+                console.log('🔄 Trying JSONP fallback...');
+                return this.callAPIWithJSONP(action, data, id);
+            }
+            
             throw error;
         }
+    }
+    
+    // JSONP Fallback for CORS issues
+    async callAPIWithJSONP(action, data = null, id = null) {
+        return new Promise((resolve, reject) => {
+            const callbackName = 'jsonp_callback_' + Date.now();
+            const url = new URL(this.baseUrl);
+            
+            url.searchParams.append('action', action);
+            url.searchParams.append('callback', callbackName);
+            
+            if (data) {
+                url.searchParams.append('data', JSON.stringify(data));
+            }
+            
+            if (id) {
+                url.searchParams.append('id', id);
+            }
+            
+            // Create script element for JSONP
+            const script = document.createElement('script');
+            script.src = url.toString();
+            
+            // Set up callback
+            window[callbackName] = function(result) {
+                document.head.removeChild(script);
+                delete window[callbackName];
+                
+                if (result.success) {
+                    resolve(result);
+                } else {
+                    reject(new Error(result.error || 'JSONP call failed'));
+                }
+            };
+            
+            // Handle script load error
+            script.onerror = function() {
+                document.head.removeChild(script);
+                delete window[callbackName];
+                reject(new Error('JSONP script failed to load'));
+            };
+            
+            // Add script to head
+            document.head.appendChild(script);
+            
+            // Timeout after 10 seconds
+            setTimeout(() => {
+                if (window[callbackName]) {
+                    document.head.removeChild(script);
+                    delete window[callbackName];
+                    reject(new Error('JSONP timeout'));
+                }
+            }, 10000);
+        });
     }
     
     // Categories API
@@ -109,45 +173,50 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Initialize application
 async function initializeApp() {
+    console.log('🚀 Starting app initialization...');
+    showLoading(true);
+    
+    // Always load demo data first for immediate UI
+    await loadDemoData();
+    setupEventListeners();
+    renderCategories();
+    renderPackages();
+    showLoading(false);
+    
+    // Then try to load real data in background
+    tryLoadRealData();
+    
+    // Add UI enhancements
+    setTimeout(() => {
+        addConnectionStatusIndicator();
+        addRefreshButton();
+    }, 1000);
+    
+    console.log('✅ App initialized with demo data');
+}
+
+// Try to load real data in background
+async function tryLoadRealData() {
     try {
-        console.log('🚀 Starting app initialization...');
-        showLoading(true);
+        console.log('🔄 Attempting to load real data from API...');
         
         // Test API connection first
-        console.log('🔌 Testing API connection...');
         await testAPIConnection();
         
-        // Load real data from Apps Script
+        // Load real data
         await loadDataFromAPI();
-        showToast('✅ Data berhasil dimuat dari server!', 'success');
         
-        setupEventListeners();
+        // Re-render with real data
         renderCategories();
         renderPackages();
-        showLoading(false);
         
-        // Start auto refresh
-        startAutoRefresh();
-        
-        // Add UI enhancements
-        addConnectionStatusIndicator();
-        addRefreshButton();
-        
-        console.log('✅ App initialized successfully');
+        showToast('✅ Data real berhasil dimuat dari server!', 'success');
+        updateConnectionStatus('connected');
         
     } catch (error) {
-        console.error('❌ Error loading from API, using demo data:', error);
-        showToast('⚠️ Gagal terhubung ke server. Menggunakan data demo.', 'warning');
-        
-        await loadDemoData();
-        setupEventListeners();
-        renderCategories();
-        renderPackages();
-        showLoading(false);
-        
-        // Still add UI enhancements
-        addConnectionStatusIndicator();
-        addRefreshButton();
+        console.error('❌ Failed to load real data:', error);
+        showToast('⚠️ Menggunakan data demo (tidak terhubung ke server)', 'warning');
+        updateConnectionStatus('disconnected');
     }
 }
 
@@ -169,16 +238,41 @@ async function loadDataFromAPI() {
     try {
         console.log('🔄 Loading data from API...');
         
-        // Load categories, packages, and settings
-        const [categoriesResult, packagesResult, settingsResult] = await Promise.all([
-            API.getCategories(),
-            API.getPackages(),
-            API.getSettings()
-        ]);
+        // Load categories, packages, and settings with timeout
+        const promises = [
+            Promise.race([
+                API.getCategories(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]),
+            Promise.race([
+                API.getPackages(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ]),
+            Promise.race([
+                API.getSettings(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+            ])
+        ];
         
-        categories = categoriesResult.data || [];
-        packages = packagesResult.data || [];
-        settings = settingsResult.data || {};
+        const [categoriesResult, packagesResult, settingsResult] = await Promise.allSettled(promises);
+        
+        // Update data if successful
+        if (categoriesResult.status === 'fulfilled' && categoriesResult.value.data) {
+            categories = categoriesResult.value.data;
+        }
+        
+        if (packagesResult.status === 'fulfilled' && packagesResult.value.data) {
+            packages = packagesResult.value.data;
+        }
+        
+        if (settingsResult.status === 'fulfilled' && settingsResult.value.data) {
+            settings = settingsResult.value.data;
+            
+            // Update payment settings if available
+            if (settings.qris_image_url) {
+                updateQRISImage(settings.qris_image_url);
+            }
+        }
         
         console.log('✅ Data loaded from API:', { 
             categories: categories.length, 
@@ -186,18 +280,13 @@ async function loadDataFromAPI() {
             settings: Object.keys(settings).length
         });
         
-        // Update payment settings if available
-        if (settings.qris_image_url) {
-            updateQRISImage(settings.qris_image_url);
-        }
-        
     } catch (error) {
         console.error('❌ Error loading data from API:', error);
         throw error;
     }
 }
 
-// Load demo data (fallback)
+// Load demo data (always available)
 async function loadDemoData() {
     console.log('📋 Loading demo data...');
     
@@ -568,7 +657,7 @@ function selectPayment(method) {
     }
 }
 
-// Process purchase
+// Process purchase - Modified for offline mode
 async function processPurchase() {
     const phoneNumber = document.getElementById('phoneNumber').value;
     
@@ -609,10 +698,24 @@ async function processPurchase() {
             payment_method: selectedPayment
         };
         
-        // Save to backend
-        const transactionResult = await API.addTransaction(transactionData);
-        console.log('✅ Transaction saved to backend:', transactionResult);
-        showToast('✅ Transaksi berhasil disimpan ke database!', 'success');
+        try {
+            // Try to save to backend
+            const transactionResult = await API.addTransaction(transactionData);
+            console.log('✅ Transaction saved to backend:', transactionResult);
+            showToast('✅ Transaksi berhasil disimpan ke database!', 'success');
+            
+            // Send WhatsApp notification to admin
+            if (transactionResult && transactionResult.data) {
+                sendWhatsAppNotification(transactionData, transactionResult.data.transaction_id);
+            }
+        } catch (apiError) {
+            console.log('⚠️ API unavailable, processing offline:', apiError.message);
+            showToast('📝 Transaksi diproses secara offline', 'warning');
+            
+            // Generate local transaction ID
+            const localTransactionId = 'LOCAL_' + Date.now();
+            sendWhatsAppNotification(transactionData, localTransactionId);
+        }
         
         // Handle payment method
         if (selectedPayment === 'qris') {
@@ -635,11 +738,6 @@ async function processPurchase() {
                 showToast('📝 Transaksi berhasil dibuat. Menunggu pembayaran...', 'success');
             }
         }, selectedPayment === 'qris' ? 2000 : 500);
-        
-        // Send WhatsApp notification to admin
-        if (transactionResult && transactionResult.data) {
-            sendWhatsAppNotification(transactionData, transactionResult.data.transaction_id);
-        }
         
     } catch (error) {
         console.error('❌ Error processing purchase:', error);
@@ -684,34 +782,31 @@ Silakan cek panel admin untuk approve transaksi.
     }
 }
 
-// Auto refresh data every 30 seconds
-function startAutoRefresh() {
-    setInterval(async () => {
-        try {
-            await loadDataFromAPI();
-            renderCategories();
-            renderPackages();
-            console.log('🔄 Auto refresh completed');
-        } catch (error) {
-            console.error('❌ Auto refresh failed:', error);
-        }
-    }, 30000); // 30 seconds
-}
-
 // Manual refresh function
 async function refreshData() {
     try {
         console.log('🔄 Manual refresh triggered...');
         showLoading(true);
-        await loadDataFromAPI();
-        renderCategories();
-        renderPackages();
-        showToast('✅ Data berhasil diperbarui dari server!', 'success');
+        await tryLoadRealData();
     } catch (error) {
         console.error('❌ Error refreshing data:', error);
         showToast('❌ Gagal memperbarui data', 'error');
     } finally {
         showLoading(false);
+    }
+}
+
+// Update connection status indicator
+function updateConnectionStatus(status) {
+    const indicator = document.getElementById('connection-status');
+    if (indicator) {
+        if (status === 'connected') {
+            indicator.style.background = '#28a745';
+            indicator.textContent = '🟢 Server';
+        } else {
+            indicator.style.background = '#dc3545';
+            indicator.textContent = '🔴 Demo';
+        }
     }
 }
 
@@ -793,13 +888,15 @@ function showToast(message, type = 'success') {
 
 // Connection status indicator
 function addConnectionStatusIndicator() {
+    if (document.getElementById('connection-status')) return; // Already exists
+    
     const indicator = document.createElement('div');
     indicator.id = 'connection-status';
     indicator.style.cssText = `
         position: fixed;
         bottom: 80px;
         right: 20px;
-        background: #28a745;
+        background: #dc3545;
         color: white;
         padding: 8px 12px;
         border-radius: 20px;
@@ -807,13 +904,13 @@ function addConnectionStatusIndicator() {
         z-index: 1000;
         box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         cursor: pointer;
+        transition: all 0.3s ease;
     `;
-    indicator.textContent = '🟢 Server';
+    indicator.textContent = '🔴 Demo';
     indicator.onclick = () => {
-        API.healthCheck()
-            .then(() => showToast('🟢 Terhubung ke server', 'success'))
-            .catch(() => showToast('🔴 Gagal terhubung ke server', 'error'));
+        refreshData();
     };
+    indicator.title = 'Klik untuk refresh data';
     document.body.appendChild(indicator);
 }
 
@@ -825,6 +922,7 @@ function addRefreshButton() {
         refreshBtn.className = 'refresh-btn';
         refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
         refreshBtn.onclick = refreshData;
+        refreshBtn.title = 'Refresh data dari server';
         refreshBtn.style.cssText = `
             position: absolute;
             top: 10px;
