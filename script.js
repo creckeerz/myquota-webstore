@@ -1,6 +1,6 @@
 // =================== KONFIGURASI API - CORS FIX ===================
 const API_CONFIG = {
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwC7R0JGrhGZO2rLpYM9HNFU-kollHgJmTBQGmBTIGY04bbb_nSxs0Ekca519mQF3qo5g/exec',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx8S_ZfWfrFzKd8LnSOJ7DK4B-DMsF-ZuK71Ab_Ohdc1xnNBezVSSs6N_iU4HNCuUwWug/exec',
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3
 };
