@@ -1,24 +1,3 @@
-// =================== CONFIGURATION FILE ===================
-
-// API Configuration
-const CONFIG = {
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx8S_ZfWfrFzKd8LnSOJ7DK4B-DMsF-ZuK71Ab_Ohdc1xnNBezVSSs6N_iU4HNCuUwWug/exec',
-    TIMEOUT: 10000,
-    RETRY_ATTEMPTS: 3,
-    ADMIN: {
-        USERNAME: 'admin',
-        PASSWORD: 'admin123'
-    }
-};
-
-// Make CONFIG globally available
-window.CONFIG = CONFIG;
-
-console.log('✅ Configuration loaded successfully');
-
-
-
-
 // Configuration file for MyQuota WebStore
 const CONFIG = {
     // Google Sheets Configuration
