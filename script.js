@@ -30,7 +30,7 @@ async function initializeApp() {
         showLoading(true);
         
         // Check if API is configured
-        if (CONFIG.APPS_SCRIPT_URL.includes('YOUR_APPS_SCRIPT_WEB_APP_URL_HERE')) {
+        if (CONFIG.APPS_SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec')) {
             showToast('Backend belum dikonfigurasi. Menggunakan data demo.', 'warning');
             await loadDemoData();
         } else {
