@@ -37,169 +37,24 @@ const ADMIN_API_CONFIG = {
     RETRY_ATTEMPTS: 3
 };
 
-// API Client for Admin
-class AdminAPI {
-    constructor(baseUrl) {
-        this.baseUrl = baseUrl;
-    }
-    
-    async callAPI(action, data = null, id = null) {
-        try {
-            // Use POST method with FormData for better CORS compatibility
-            const formData = new FormData();
-            formData.append('action', action);
-            
-            if (data) {
-                formData.append('data', JSON.stringify(data));
-            }
-            
-            if (id) {
-                formData.append('id', id);
-            }
-            
-            console.log('🔄 Admin API Call (POST):', action, data ? 'with data' : 'no data');
-            
-            const response = await fetch(this.baseUrl, {
-                method: 'POST',
-                body: formData,
-                mode: 'cors',
-                credentials: 'omit'
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const result = await response.json();
-            
-            if (!result.success) {
-                throw new Error(result.error || 'API call failed');
-            }
-            
-            console.log('✅ Admin API Success:', action);
-            return result;
-            
-        } catch (error) {
-            console.error('❌ Admin API Error:', action, error.message);
-            
-            // Fallback to GET method if POST fails
-            if (error.message.includes('CORS') || error.message.includes('fetch')) {
-                console.log('🔄 Trying GET fallback...');
-                return this.callAPIWithGET(action, data, id);
-            }
-            
-            throw error;
-        }
-    }
-    
-    // Fallback GET method
-    async callAPIWithGET(action, data = null, id = null) {
-        try {
-            const url = new URL(this.baseUrl);
-            url.searchParams.append('action', action);
-            
-            if (data) {
-                url.searchParams.append('data', JSON.stringify(data));
-            }
-            
-            if (id) {
-                url.searchParams.append('id', id);
-            }
-            
-            console.log('🔄 Admin API Call (GET fallback):', action);
-            
-            const response = await fetch(url.toString(), {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const result = await response.json();
-            
-            if (!result.success) {
-                throw new Error(result.error || 'API call failed');
-            }
-            
-            console.log('✅ Admin API Success (GET):', action);
-            return result;
-            
-        } catch (error) {
-            console.error('❌ Admin API GET Error:', action, error.message);
-            throw error;
-        }
-    }
-    
-    // Categories API
-    async getCategories() {
-        return this.callAPI('getCategories');
-    }
-    
-    async addCategory(categoryData) {
-        return this.callAPI('addCategory', categoryData);
-    }
-    
-    async updateCategory(id, categoryData) {
-        return this.callAPI('updateCategory', categoryData, id);
-    }
-    
-    async deleteCategory(id) {
-        return this.callAPI('deleteCategory', null, id);
-    }
-    
-    // Packages API
-    async getPackages() {
-        return this.callAPI('getPackages');
-    }
-    
-    async addPackage(packageData) {
-        return this.callAPI('addPackage', packageData);
-    }
-    
-    async updatePackage(id, packageData) {
-        return this.callAPI('updatePackage', packageData, id);
-    }
-    
-    async deletePackage(id) {
-        return this.callAPI('deletePackage', null, id);
-    }
-    
-    // Transactions API
-    async getTransactions() {
-        return this.callAPI('getTransactions');
-    }
-    
-    async updateTransactionStatus(id, status) {
-        return this.callAPI('updateTransactionStatus', { status }, id);
-    }
-    
-    // Settings API
-    async getSettings() {
-        return this.callAPI('getSettings');
-    }
-    
-    async updateSettings(settingsData) {
-        return this.callAPI('updateSettings', settingsData);
-    }
-}
-
-// Initialize API
-const adminAPI = new AdminAPI(ADMIN_API_CONFIG.APPS_SCRIPT_URL);
+console.log('🔧 Admin API URL:', ADMIN_API_CONFIG.APPS_SCRIPT_URL);
 
 // =================== INITIALIZATION ===================
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Admin Panel Initializing...');
+    console.log('🚀 Admin Panel DOM Loaded');
     
     // Check if already logged in
     const isLoggedIn = localStorage.getItem('adminLoggedIn');
+    console.log('📋 Login status from localStorage:', isLoggedIn);
+    
     if (isLoggedIn === 'true') {
+        console.log('✅ User already logged in, showing admin panel');
         showAdminPanel();
-        loadAllData();
+        loadDemoAdminData(); // Start with demo data first
+    } else {
+        console.log('❌ User not logged in, showing login form');
+        showLoginForm();
     }
 });
 
@@ -207,114 +62,53 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function handleLogin(event) {
     event.preventDefault();
+    console.log('🔐 Login attempt started');
     
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     
+    console.log('📝 Username:', username);
+    console.log('📝 Password length:', password.length);
+    
     // Simple authentication
     if (username === 'admin' && password === 'admin123') {
+        console.log('✅ Login successful');
         localStorage.setItem('adminLoggedIn', 'true');
         showAdminPanel();
-        loadAllData();
+        loadDemoAdminData();
         showToast('Login berhasil!', 'success');
     } else {
+        console.log('❌ Login failed');
         showToast('Username atau password salah!', 'error');
     }
 }
 
 function logout() {
+    console.log('🚪 Logout initiated');
     localStorage.removeItem('adminLoggedIn');
-    document.getElementById('loginContainer').style.display = 'flex';
-    document.getElementById('adminContainer').style.display = 'none';
+    showLoginForm();
     showToast('Logout berhasil!', 'success');
 }
 
+function showLoginForm() {
+    console.log('📋 Showing login form');
+    const loginContainer = document.getElementById('loginContainer');
+    const adminContainer = document.getElementById('adminContainer');
+    
+    if (loginContainer) loginContainer.style.display = 'flex';
+    if (adminContainer) adminContainer.style.display = 'none';
+}
+
 function showAdminPanel() {
-    document.getElementById('loginContainer').style.display = 'none';
-    document.getElementById('adminContainer').style.display = 'flex';
+    console.log('🏢 Showing admin panel');
+    const loginContainer = document.getElementById('loginContainer');
+    const adminContainer = document.getElementById('adminContainer');
+    
+    if (loginContainer) loginContainer.style.display = 'none';
+    if (adminContainer) adminContainer.style.display = 'flex';
 }
 
-// =================== DATA LOADING ===================
-
-async function loadAllData() {
-    try {
-        showLoading(true);
-        console.log('🔄 Loading all admin data...');
-        
-        // Load all data simultaneously with individual error handling
-        const results = await Promise.allSettled([
-            adminAPI.getCategories(),
-            adminAPI.getPackages(),
-            adminAPI.getTransactions(),
-            adminAPI.getSettings()
-        ]);
-        
-        // Process categories
-        if (results[0].status === 'fulfilled') {
-            adminData.categories = results[0].value.data || [];
-            console.log('✅ Categories loaded:', adminData.categories.length);
-        } else {
-            console.error('❌ Failed to load categories:', results[0].reason);
-            adminData.categories = [];
-        }
-        
-        // Process packages
-        if (results[1].status === 'fulfilled') {
-            adminData.packages = results[1].value.data || [];
-            console.log('✅ Packages loaded:', adminData.packages.length);
-        } else {
-            console.error('❌ Failed to load packages:', results[1].reason);
-            adminData.packages = [];
-        }
-        
-        // Process transactions
-        if (results[2].status === 'fulfilled') {
-            adminData.transactions = results[2].value.data || [];
-            console.log('✅ Transactions loaded:', adminData.transactions.length);
-        } else {
-            console.error('❌ Failed to load transactions:', results[2].reason);
-            adminData.transactions = [];
-        }
-        
-        // Process settings
-        if (results[3].status === 'fulfilled') {
-            adminData.settings = results[3].value.data || {};
-            console.log('✅ Settings loaded:', Object.keys(adminData.settings).length, 'keys');
-        } else {
-            console.error('❌ Failed to load settings:', results[3].reason);
-            adminData.settings = {};
-        }
-        
-        // Check if any data was loaded successfully
-        const successCount = results.filter(r => r.status === 'fulfilled').length;
-        
-        if (successCount === 0) {
-            console.log('⚠️ No data loaded from API, using demo data');
-            loadDemoAdminData();
-            showToast('Menggunakan data demo (tidak terhubung ke server)', 'warning');
-        } else {
-            console.log(`✅ Loaded ${successCount}/4 data types from server`);
-            
-            // Render all sections
-            renderDashboard();
-            renderCategories();
-            renderPackages();
-            renderTransactions();
-            renderSettings();
-            
-            showToast('Data berhasil dimuat dari server!', 'success');
-        }
-        
-    } catch (error) {
-        console.error('❌ Critical error loading admin data:', error);
-        showToast('Error loading data: ' + error.message, 'error');
-        
-        // Load demo data as fallback
-        loadDemoAdminData();
-    } finally {
-        showLoading(false);
-    }
-}
+// =================== DATA MANAGEMENT ===================
 
 function loadDemoAdminData() {
     console.log('📋 Loading demo admin data...');
@@ -322,23 +116,35 @@ function loadDemoAdminData() {
     adminData = {
         categories: [
             { id: 1, name: 'Official XL / AXIS', slug: 'official-xl-axis', description: 'Paket resmi XL dan AXIS', icon: 'fas fa-star', status: 'active' },
-            { id: 2, name: 'XL Circle', slug: 'xl-circle', description: 'Paket premium XL Circle', icon: 'fas fa-users', status: 'active' }
+            { id: 2, name: 'XL Circle', slug: 'xl-circle', description: 'Paket premium XL Circle', icon: 'fas fa-users', status: 'active' },
+            { id: 3, name: 'Paket Harian', slug: 'paket-harian', description: 'Paket internet harian', icon: 'fas fa-calendar-day', status: 'active' },
+            { id: 4, name: 'Perpanjangan Masa Aktif', slug: 'perpanjangan-masa-aktif', description: 'Perpanjangan masa aktif kartu', icon: 'fas fa-clock', status: 'active' }
         ],
         packages: [
-            { id: 1, category_id: 1, name: 'XL Combo 10GB', quota: '10GB', price: 50000, validity: '30 hari', description: 'Paket internet 10GB', is_popular: true, status: 'active' }
+            { id: 1, category_id: 1, name: 'XL Combo 10GB', quota: '10GB', price: 50000, validity: '30 hari', description: 'Paket internet 10GB dengan bonus telpon dan SMS unlimited', is_popular: true, status: 'active' },
+            { id: 2, category_id: 1, name: 'AXIS Bronet 5GB', quota: '5GB', price: 25000, validity: '30 hari', description: 'Paket internet 5GB untuk browsing dan media sosial', is_popular: false, status: 'active' },
+            { id: 3, category_id: 2, name: 'XL Circle 15GB', quota: '15GB', price: 75000, validity: '30 hari', description: 'Paket premium XL Circle dengan kuota besar', is_popular: true, status: 'active' }
         ],
         transactions: [
-            { id: 1, package_id: 1, phone_number: '081234567890', amount: 50000, payment_method: 'qris', status: 'pending', created_at: new Date().toISOString() }
+            { id: 'TXN_001', package_id: 1, phone_number: '081234567890', amount: 50000, payment_method: 'qris', status: 'pending', created_at: new Date().toISOString() },
+            { id: 'TXN_002', package_id: 2, phone_number: '081987654321', amount: 25000, payment_method: 'dana', status: 'completed', created_at: new Date(Date.now() - 86400000).toISOString() }
         ],
         settings: {
             app_name: 'MyQuota',
             maintenance_mode: false,
             admin_whatsapp: '6281234567890',
-            qris_image_url: '',
-            dana_link: ''
+            qris_image_url: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+DEMO',
+            dana_link: 'https://link.dana.id/qr/demo'
         }
     };
     
+    console.log('✅ Demo data loaded:', {
+        categories: adminData.categories.length,
+        packages: adminData.packages.length,
+        transactions: adminData.transactions.length
+    });
+    
+    // Render all sections
     renderDashboard();
     renderCategories();
     renderPackages();
@@ -349,16 +155,24 @@ function loadDemoAdminData() {
 // =================== DASHBOARD ===================
 
 function renderDashboard() {
+    console.log('📊 Rendering dashboard...');
+    
     // Update statistics
-    document.getElementById('totalCategories').textContent = adminData.categories.length;
-    document.getElementById('totalPackages').textContent = adminData.packages.length;
-    document.getElementById('totalTransactions').textContent = adminData.transactions.length;
+    const totalCategories = document.getElementById('totalCategories');
+    const totalPackages = document.getElementById('totalPackages');
+    const totalTransactions = document.getElementById('totalTransactions');
+    const totalRevenue = document.getElementById('totalRevenue');
+    
+    if (totalCategories) totalCategories.textContent = adminData.categories.length;
+    if (totalPackages) totalPackages.textContent = adminData.packages.length;
+    if (totalTransactions) totalTransactions.textContent = adminData.transactions.length;
     
     // Calculate total revenue
-    const totalRevenue = adminData.transactions
+    const revenue = adminData.transactions
         .filter(t => t.status === 'completed')
         .reduce((sum, t) => sum + Number(t.amount), 0);
-    document.getElementById('totalRevenue').textContent = `Rp ${totalRevenue.toLocaleString('id-ID')}`;
+    
+    if (totalRevenue) totalRevenue.textContent = `Rp ${revenue.toLocaleString('id-ID')}`;
     
     // Render recent activities
     renderRecentActivities();
@@ -367,6 +181,8 @@ function renderDashboard() {
 
 function renderRecentActivities() {
     const container = document.getElementById('recentActivities');
+    if (!container) return;
+    
     const recentTransactions = adminData.transactions
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 5);
@@ -400,6 +216,8 @@ function renderRecentActivities() {
 
 function renderPopularPackages() {
     const container = document.getElementById('popularPackages');
+    if (!container) return;
+    
     const popularPackages = adminData.packages
         .filter(p => p.is_popular)
         .slice(0, 5);
@@ -420,73 +238,77 @@ function renderPopularPackages() {
 // =================== CATEGORIES MANAGEMENT ===================
 
 function renderCategories() {
+    console.log('🏷️ Rendering categories...');
     const tbody = document.getElementById('categoriesTable');
+    if (!tbody) return;
     
     if (adminData.categories.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="empty-message">Belum ada kategori</td></tr>';
         return;
     }
     
-    tbody.innerHTML = adminData.categories.map(category => {
-        const categoryId = category.id;
-        
-        return `
-            <tr>
-                <td>${categoryId}</td>
-                <td>${category.name}</td>
-                <td>${category.slug}</td>
-                <td><i class="${category.icon}"></i></td>
-                <td><span class="status-badge status-${category.status}">${category.status}</span></td>
-                <td>
-                    <button class="btn-icon" onclick="editCategory('${categoryId}')" title="Edit">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-icon btn-danger" onclick="deleteCategory('${categoryId}')" title="Hapus">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-    }).join('');
+    tbody.innerHTML = adminData.categories.map(category => `
+        <tr>
+            <td>${category.id}</td>
+            <td>${category.name}</td>
+            <td>${category.slug}</td>
+            <td><i class="${category.icon}"></i></td>
+            <td><span class="status-badge status-${category.status}">${category.status}</span></td>
+            <td>
+                <button class="btn-icon" onclick="editCategory('${category.id}')" title="Edit">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn-icon btn-danger" onclick="deleteCategory('${category.id}')" title="Hapus">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
     
-    // Update package category options
     updatePackageCategoryOptions();
-    console.log('🏷️ Rendered categories table with', adminData.categories.length, 'categories');
 }
 
 function showAddCategoryModal() {
     currentEditingId = null;
     currentEditingType = 'category';
     
-    document.getElementById('categoryModalTitle').textContent = 'Tambah Kategori';
-    document.getElementById('categoryForm').reset();
-    document.getElementById('addCategoryModal').classList.add('active');
+    const modal = document.getElementById('addCategoryModal');
+    const title = document.getElementById('categoryModalTitle');
+    const form = document.getElementById('categoryForm');
+    
+    if (title) title.textContent = 'Tambah Kategori';
+    if (form) form.reset();
+    if (modal) modal.classList.add('active');
 }
 
 function editCategory(id) {
     const category = adminData.categories.find(c => c.id == id);
     if (!category) {
-        console.error('❌ Category not found with ID:', id);
         showToast('Kategori tidak ditemukan!', 'error');
         return;
     }
     
-    console.log('✏️ Editing category:', category);
-    
     currentEditingId = id;
     currentEditingType = 'category';
     
-    document.getElementById('categoryModalTitle').textContent = 'Edit Kategori';
-    document.getElementById('categoryName').value = category.name;
-    document.getElementById('categorySlug').value = category.slug;
-    document.getElementById('categoryDescription').value = category.description || '';
-    document.getElementById('categoryIcon').value = category.icon;
-    document.getElementById('categoryStatus').value = category.status;
+    const title = document.getElementById('categoryModalTitle');
+    const nameInput = document.getElementById('categoryName');
+    const slugInput = document.getElementById('categorySlug');
+    const descInput = document.getElementById('categoryDescription');
+    const iconInput = document.getElementById('categoryIcon');
+    const statusInput = document.getElementById('categoryStatus');
+    const modal = document.getElementById('addCategoryModal');
     
-    document.getElementById('addCategoryModal').classList.add('active');
+    if (title) title.textContent = 'Edit Kategori';
+    if (nameInput) nameInput.value = category.name;
+    if (slugInput) slugInput.value = category.slug;
+    if (descInput) descInput.value = category.description || '';
+    if (iconInput) iconInput.value = category.icon;
+    if (statusInput) statusInput.value = category.status;
+    if (modal) modal.classList.add('active');
 }
 
-async function saveCategory(event) {
+function saveCategory(event) {
     event.preventDefault();
     
     const categoryData = {
@@ -499,84 +321,43 @@ async function saveCategory(event) {
     
     console.log('💾 Saving category:', categoryData);
     
-    try {
-        showLoading(true);
-        
-        let result;
-        
-        if (currentEditingId) {
-            // Update existing category
-            console.log('📝 Updating category ID:', currentEditingId);
-            result = await adminAPI.updateCategory(currentEditingId, categoryData);
-            
-            // Update local data
-            const index = adminData.categories.findIndex(c => c.id == currentEditingId);
-            if (index !== -1) {
-                adminData.categories[index] = { ...adminData.categories[index], ...categoryData };
-                console.log('✅ Local data updated for category:', currentEditingId);
-            }
-            
+    if (currentEditingId) {
+        // Update existing category
+        const index = adminData.categories.findIndex(c => c.id == currentEditingId);
+        if (index !== -1) {
+            adminData.categories[index] = { ...adminData.categories[index], ...categoryData };
             showToast('Kategori berhasil diperbarui!', 'success');
-        } else {
-            // Add new category
-            console.log('➕ Adding new category');
-            result = await adminAPI.addCategory(categoryData);
-            
-            // Add to local data
-            const newCategory = { 
-                id: result.data?.id || Date.now(), 
-                ...categoryData 
-            };
-            adminData.categories.push(newCategory);
-            console.log('✅ New category added to local data:', newCategory);
-            
-            showToast('Kategori berhasil ditambahkan!', 'success');
         }
-        
-        console.log('🔄 Refreshing UI...');
-        renderCategories();
-        renderDashboard();
-        closeModal('addCategoryModal');
-        
-    } catch (error) {
-        console.error('❌ Error saving category:', error);
-        showToast('Gagal menyimpan kategori: ' + error.message, 'error');
-    } finally {
-        showLoading(false);
+    } else {
+        // Add new category
+        const newCategory = { 
+            id: Date.now(), 
+            ...categoryData 
+        };
+        adminData.categories.push(newCategory);
+        showToast('Kategori berhasil ditambahkan!', 'success');
     }
+    
+    renderCategories();
+    renderDashboard();
+    closeModal('addCategoryModal');
 }
 
-async function deleteCategory(id) {
+function deleteCategory(id) {
     if (!confirm('Apakah Anda yakin ingin menghapus kategori ini?')) return;
     
-    console.log('🗑️ Deleting category ID:', id);
-    
-    try {
-        showLoading(true);
-        
-        const result = await adminAPI.deleteCategory(id);
-        console.log('✅ Category deleted from server:', result);
-        
-        // Remove from local data
-        adminData.categories = adminData.categories.filter(c => c.id != id);
-        console.log('✅ Category removed from local data');
-        
-        renderCategories();
-        renderDashboard();
-        showToast('Kategori berhasil dihapus!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Error deleting category:', error);
-        showToast('Gagal menghapus kategori: ' + error.message, 'error');
-    } finally {
-        showLoading(false);
-    }
+    adminData.categories = adminData.categories.filter(c => c.id != id);
+    renderCategories();
+    renderDashboard();
+    showToast('Kategori berhasil dihapus!', 'success');
 }
 
 // =================== PACKAGES MANAGEMENT ===================
 
 function renderPackages() {
+    console.log('📦 Rendering packages...');
     const tbody = document.getElementById('packagesTable');
+    if (!tbody) return;
     
     if (adminData.packages.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="empty-message">Belum ada paket</td></tr>';
@@ -586,11 +367,10 @@ function renderPackages() {
     tbody.innerHTML = adminData.packages.map(package_ => {
         const category = adminData.categories.find(c => c.id == package_.category_id);
         const categoryName = category ? category.name : 'Unknown';
-        const packageId = package_.id;
         
         return `
             <tr>
-                <td>${packageId}</td>
+                <td>${package_.id}</td>
                 <td>${package_.name}</td>
                 <td>${categoryName}</td>
                 <td>${package_.quota}</td>
@@ -598,68 +378,77 @@ function renderPackages() {
                 <td>${package_.validity}</td>
                 <td><span class="status-badge status-${package_.status}">${package_.status}</span></td>
                 <td>
-                    <button class="btn-icon" onclick="editPackage('${packageId}')" title="Edit">
+                    <button class="btn-icon" onclick="editPackage('${package_.id}')" title="Edit">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="btn-icon btn-danger" onclick="deletePackage('${packageId}')" title="Hapus">
+                    <button class="btn-icon btn-danger" onclick="deletePackage('${package_.id}')" title="Hapus">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
             </tr>
         `;
     }).join('');
-    
-    console.log('📦 Rendered packages table with', adminData.packages.length, 'packages');
 }
 
 function updatePackageCategoryOptions() {
     const select = document.getElementById('packageCategory');
-    if (select) {
-        select.innerHTML = '<option value="">Pilih Kategori</option>' +
-            adminData.categories.map(category => 
-                `<option value="${category.id}">${category.name}</option>`
-            ).join('');
-    }
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">Pilih Kategori</option>' +
+        adminData.categories.map(category => 
+            `<option value="${category.id}">${category.name}</option>`
+        ).join('');
 }
 
 function showAddPackageModal() {
     currentEditingId = null;
     currentEditingType = 'package';
     
-    document.getElementById('packageModalTitle').textContent = 'Tambah Paket';
-    document.getElementById('packageForm').reset();
+    const modal = document.getElementById('addPackageModal');
+    const title = document.getElementById('packageModalTitle');
+    const form = document.getElementById('packageForm');
+    
+    if (title) title.textContent = 'Tambah Paket';
+    if (form) form.reset();
     updatePackageCategoryOptions();
-    document.getElementById('addPackageModal').classList.add('active');
+    if (modal) modal.classList.add('active');
 }
 
 function editPackage(id) {
     const package_ = adminData.packages.find(p => p.id == id);
     if (!package_) {
-        console.error('❌ Package not found with ID:', id);
         showToast('Paket tidak ditemukan!', 'error');
         return;
     }
     
-    console.log('✏️ Editing package:', package_);
-    
     currentEditingId = id;
     currentEditingType = 'package';
     
-    document.getElementById('packageModalTitle').textContent = 'Edit Paket';
-    document.getElementById('packageCategory').value = package_.category_id;
-    document.getElementById('packageName').value = package_.name;
-    document.getElementById('packageQuota').value = package_.quota;
-    document.getElementById('packagePrice').value = package_.price;
-    document.getElementById('packageValidity').value = package_.validity;
-    document.getElementById('packageDescription').value = package_.description;
-    document.getElementById('packagePopular').checked = package_.is_popular;
-    document.getElementById('packageStatus').value = package_.status;
+    const title = document.getElementById('packageModalTitle');
+    const categorySelect = document.getElementById('packageCategory');
+    const nameInput = document.getElementById('packageName');
+    const quotaInput = document.getElementById('packageQuota');
+    const priceInput = document.getElementById('packagePrice');
+    const validityInput = document.getElementById('packageValidity');
+    const descInput = document.getElementById('packageDescription');
+    const popularInput = document.getElementById('packagePopular');
+    const statusInput = document.getElementById('packageStatus');
+    const modal = document.getElementById('addPackageModal');
     
+    if (title) title.textContent = 'Edit Paket';
     updatePackageCategoryOptions();
-    document.getElementById('addPackageModal').classList.add('active');
+    if (categorySelect) categorySelect.value = package_.category_id;
+    if (nameInput) nameInput.value = package_.name;
+    if (quotaInput) quotaInput.value = package_.quota;
+    if (priceInput) priceInput.value = package_.price;
+    if (validityInput) validityInput.value = package_.validity;
+    if (descInput) descInput.value = package_.description;
+    if (popularInput) popularInput.checked = package_.is_popular;
+    if (statusInput) statusInput.value = package_.status;
+    if (modal) modal.classList.add('active');
 }
 
-async function savePackage(event) {
+function savePackage(event) {
     event.preventDefault();
     
     const packageData = {
@@ -675,84 +464,43 @@ async function savePackage(event) {
     
     console.log('💾 Saving package:', packageData);
     
-    try {
-        showLoading(true);
-        
-        let result;
-        
-        if (currentEditingId) {
-            // Update existing package
-            console.log('📝 Updating package ID:', currentEditingId);
-            result = await adminAPI.updatePackage(currentEditingId, packageData);
-            
-            // Update local data
-            const index = adminData.packages.findIndex(p => p.id == currentEditingId);
-            if (index !== -1) {
-                adminData.packages[index] = { ...adminData.packages[index], ...packageData };
-                console.log('✅ Local data updated for package:', currentEditingId);
-            }
-            
+    if (currentEditingId) {
+        // Update existing package
+        const index = adminData.packages.findIndex(p => p.id == currentEditingId);
+        if (index !== -1) {
+            adminData.packages[index] = { ...adminData.packages[index], ...packageData };
             showToast('Paket berhasil diperbarui!', 'success');
-        } else {
-            // Add new package
-            console.log('➕ Adding new package');
-            result = await adminAPI.addPackage(packageData);
-            
-            // Add to local data
-            const newPackage = { 
-                id: result.data?.id || Date.now(), 
-                ...packageData 
-            };
-            adminData.packages.push(newPackage);
-            console.log('✅ New package added to local data:', newPackage);
-            
-            showToast('Paket berhasil ditambahkan!', 'success');
         }
-        
-        console.log('🔄 Refreshing UI...');
-        renderPackages();
-        renderDashboard();
-        closeModal('addPackageModal');
-        
-    } catch (error) {
-        console.error('❌ Error saving package:', error);
-        showToast('Gagal menyimpan paket: ' + error.message, 'error');
-    } finally {
-        showLoading(false);
+    } else {
+        // Add new package
+        const newPackage = { 
+            id: Date.now(), 
+            ...packageData 
+        };
+        adminData.packages.push(newPackage);
+        showToast('Paket berhasil ditambahkan!', 'success');
     }
+    
+    renderPackages();
+    renderDashboard();
+    closeModal('addPackageModal');
 }
 
-async function deletePackage(id) {
+function deletePackage(id) {
     if (!confirm('Apakah Anda yakin ingin menghapus paket ini?')) return;
     
-    console.log('🗑️ Deleting package ID:', id);
-    
-    try {
-        showLoading(true);
-        
-        const result = await adminAPI.deletePackage(id);
-        console.log('✅ Package deleted from server:', result);
-        
-        // Remove from local data
-        adminData.packages = adminData.packages.filter(p => p.id != id);
-        console.log('✅ Package removed from local data');
-        
-        renderPackages();
-        renderDashboard();
-        showToast('Paket berhasil dihapus!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Error deleting package:', error);
-        showToast('Gagal menghapus paket: ' + error.message, 'error');
-    } finally {
-        showLoading(false);
-    }
+    adminData.packages = adminData.packages.filter(p => p.id != id);
+    renderPackages();
+    renderDashboard();
+    showToast('Paket berhasil dihapus!', 'success');
 }
 
 // =================== TRANSACTIONS MANAGEMENT ===================
 
 function renderTransactions() {
+    console.log('💳 Rendering transactions...');
     const tbody = document.getElementById('transactionsTable');
+    if (!tbody) return;
     
     if (adminData.transactions.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="empty-message">Belum ada transaksi</td></tr>';
@@ -784,57 +532,42 @@ function renderTransactions() {
     }).join('');
 }
 
-async function updateTransactionStatus(id, newStatus) {
-    console.log('🔄 Updating transaction status:', id, 'to', newStatus);
-    
-    try {
-        showLoading(true);
-        
-        const result = await adminAPI.updateTransactionStatus(id, newStatus);
-        console.log('✅ Transaction status updated on server:', result);
-        
-        // Update local data
-        const transaction = adminData.transactions.find(t => t.id === id);
-        if (transaction) {
-            transaction.status = newStatus;
-            console.log('✅ Transaction status updated in local data');
-        }
-        
+function updateTransactionStatus(id, newStatus) {
+    const transaction = adminData.transactions.find(t => t.id === id);
+    if (transaction) {
+        transaction.status = newStatus;
         renderTransactions();
         renderDashboard();
         showToast('Status transaksi berhasil diperbarui!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Error updating transaction status:', error);
-        showToast('Gagal memperbarui status transaksi: ' + error.message, 'error');
-        
-        // Revert the select value
-        renderTransactions();
-    } finally {
-        showLoading(false);
     }
 }
 
 function filterTransactions() {
-    // This function would implement client-side filtering
-    // For now, just render all transactions
     renderTransactions();
 }
 
 // =================== SETTINGS MANAGEMENT ===================
 
 function renderSettings() {
+    console.log('⚙️ Rendering settings...');
     const settings = adminData.settings;
     
-    document.getElementById('appName').value = settings.app_name || 'MyQuota';
-    document.getElementById('maintenanceMode').checked = settings.maintenance_mode || false;
-    document.getElementById('adminWhatsapp').value = settings.admin_whatsapp || '';
-    document.getElementById('qrisImageUrl').value = settings.qris_image_url || '';
-    document.getElementById('danaLink').value = settings.dana_link || '';
-    document.getElementById('danaPhone').value = settings.dana_phone || '';
+    const appNameInput = document.getElementById('appName');
+    const maintenanceInput = document.getElementById('maintenanceMode');
+    const whatsappInput = document.getElementById('adminWhatsapp');
+    const qrisInput = document.getElementById('qrisImageUrl');
+    const danaInput = document.getElementById('danaLink');
+    const danaPhoneInput = document.getElementById('danaPhone');
+    
+    if (appNameInput) appNameInput.value = settings.app_name || 'MyQuota';
+    if (maintenanceInput) maintenanceInput.checked = settings.maintenance_mode || false;
+    if (whatsappInput) whatsappInput.value = settings.admin_whatsapp || '';
+    if (qrisInput) qrisInput.value = settings.qris_image_url || '';
+    if (danaInput) danaInput.value = settings.dana_link || '';
+    if (danaPhoneInput) danaPhoneInput.value = settings.dana_phone || '';
 }
 
-async function saveSettings() {
+function saveSettings() {
     const settingsData = {
         app_name: document.getElementById('appName').value,
         maintenance_mode: document.getElementById('maintenanceMode').checked,
@@ -844,27 +577,26 @@ async function saveSettings() {
         dana_phone: document.getElementById('danaPhone').value
     };
     
-            console.log('✅ Settings updated in local data');
-        
-        showToast('Pengaturan berhasil disimpan!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Error saving settings:', error);
-        showToast('Gagal menyimpan pengaturan: ' + error.message, 'error');
-    } finally {
-        showLoading(false);
-    }
+    adminData.settings = { ...adminData.settings, ...settingsData };
+    showToast('Pengaturan berhasil disimpan!', 'success');
 }
 
 function resetSettings() {
     if (!confirm('Apakah Anda yakin ingin reset pengaturan ke default?')) return;
     
-    document.getElementById('appName').value = 'MyQuota';
-    document.getElementById('maintenanceMode').checked = false;
-    document.getElementById('adminWhatsapp').value = '';
-    document.getElementById('qrisImageUrl').value = '';
-    document.getElementById('danaLink').value = '';
-    document.getElementById('danaPhone').value = '';
+    const appNameInput = document.getElementById('appName');
+    const maintenanceInput = document.getElementById('maintenanceMode');
+    const whatsappInput = document.getElementById('adminWhatsapp');
+    const qrisInput = document.getElementById('qrisImageUrl');
+    const danaInput = document.getElementById('danaLink');
+    const danaPhoneInput = document.getElementById('danaPhone');
+    
+    if (appNameInput) appNameInput.value = 'MyQuota';
+    if (maintenanceInput) maintenanceInput.checked = false;
+    if (whatsappInput) whatsappInput.value = '';
+    if (qrisInput) qrisInput.value = '';
+    if (danaInput) danaInput.value = '';
+    if (danaPhoneInput) danaPhoneInput.value = '';
     
     showToast('Pengaturan telah direset!', 'success');
 }
@@ -886,17 +618,22 @@ function showSection(sectionName) {
         transactions: 'Kelola Transaksi',
         settings: 'Pengaturan Aplikasi'
     };
-    document.getElementById('pageTitle').textContent = titles[sectionName] || sectionName;
+    
+    const pageTitle = document.getElementById('pageTitle');
+    if (pageTitle) pageTitle.textContent = titles[sectionName] || sectionName;
     
     // Show section
     document.querySelectorAll('.content-section').forEach(section => {
         section.classList.remove('active');
     });
-    document.getElementById(sectionName).classList.add('active');
+    
+    const targetSection = document.getElementById(sectionName);
+    if (targetSection) targetSection.classList.add('active');
 }
 
 function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('active');
+    const modal = document.getElementById(modalId);
+    if (modal) modal.classList.remove('active');
     currentEditingId = null;
     currentEditingType = null;
 }
@@ -912,7 +649,10 @@ function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toastMessage');
     
-    if (!toast || !toastMessage) return;
+    if (!toast || !toastMessage) {
+        console.log('Toast:', message);
+        return;
+    }
     
     toastMessage.textContent = message;
     toast.className = `toast ${type}`;
@@ -923,9 +663,9 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-async function refreshData() {
+function refreshData() {
     showToast('Memperbarui data...', 'info');
-    await loadAllData();
+    loadDemoAdminData();
 }
 
 // =================== GLOBAL EXPORTS ===================
