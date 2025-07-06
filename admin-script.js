@@ -17,7 +17,7 @@ window.CONFIG = CONFIG;
 console.log('✅ Configuration loaded successfully');
 
 
-// =================== ADMIN PANEL SCRIPT ===================
+// =================== ADMIN PANEL SCRIPT - GOOGLE SHEETS ===================
 
 // Global variables
 let adminData = {
@@ -30,30 +30,21 @@ let adminData = {
 let currentEditingId = null;
 let currentEditingType = null;
 
-// API Configuration
-const ADMIN_API_CONFIG = {
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx8S_ZfWfrFzKd8LnSOJ7DK4B-DMsF-ZuK71Ab_Ohdc1xnNBezVSSs6N_iU4HNCuUwWug/exec',
-    TIMEOUT: 10000,
-    RETRY_ATTEMPTS: 3
-};
-
-console.log('🔧 Admin API URL:', ADMIN_API_CONFIG.APPS_SCRIPT_URL);
+console.log('🚀 Admin Panel initializing with Google Sheets API...');
 
 // =================== INITIALIZATION ===================
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Admin Panel DOM Loaded');
+    console.log('📱 DOM loaded, checking login status...');
     
     // Check if already logged in
     const isLoggedIn = localStorage.getItem('adminLoggedIn');
-    console.log('📋 Login status from localStorage:', isLoggedIn);
-    
     if (isLoggedIn === 'true') {
-        console.log('✅ User already logged in, showing admin panel');
+        console.log('✅ User already logged in');
         showAdminPanel();
-        loadDemoAdminData(); // Start with demo data first
+        loadAllData();
     } else {
-        console.log('❌ User not logged in, showing login form');
+        console.log('❌ User not logged in');
         showLoginForm();
     }
 });
@@ -62,20 +53,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function handleLogin(event) {
     event.preventDefault();
-    console.log('🔐 Login attempt started');
+    console.log('🔐 Processing login...');
     
     const username = document.getElementById('username').value;
     const password = document.getElementById('password').value;
     
     console.log('📝 Username:', username);
-    console.log('📝 Password length:', password.length);
     
     // Simple authentication
     if (username === 'admin' && password === 'admin123') {
         console.log('✅ Login successful');
         localStorage.setItem('adminLoggedIn', 'true');
         showAdminPanel();
-        loadDemoAdminData();
+        loadAllData();
         showToast('Login berhasil!', 'success');
     } else {
         console.log('❌ Login failed');
@@ -84,14 +74,13 @@ function handleLogin(event) {
 }
 
 function logout() {
-    console.log('🚪 Logout initiated');
+    console.log('🚪 Logging out...');
     localStorage.removeItem('adminLoggedIn');
     showLoginForm();
     showToast('Logout berhasil!', 'success');
 }
 
 function showLoginForm() {
-    console.log('📋 Showing login form');
     const loginContainer = document.getElementById('loginContainer');
     const adminContainer = document.getElementById('adminContainer');
     
@@ -100,7 +89,6 @@ function showLoginForm() {
 }
 
 function showAdminPanel() {
-    console.log('🏢 Showing admin panel');
     const loginContainer = document.getElementById('loginContainer');
     const adminContainer = document.getElementById('adminContainer');
     
@@ -108,43 +96,76 @@ function showAdminPanel() {
     if (adminContainer) adminContainer.style.display = 'flex';
 }
 
-// =================== DATA MANAGEMENT ===================
+// =================== DATA LOADING ===================
 
-function loadDemoAdminData() {
-    console.log('📋 Loading demo admin data...');
+async function loadAllData() {
+    try {
+        console.log('🔄 Loading all data from Google Sheets...');
+        showLoading(true);
+        
+        // Load all data using DataService
+        const results = await Promise.allSettled([
+            DataService.getCategories(),
+            DataService.getPackages(),
+            DataService.getTransactions(),
+            DataService.getSettings()
+        ]);
+        
+        // Process results
+        adminData.categories = results[0].status === 'fulfilled' ? results[0].value : [];
+        adminData.packages = results[1].status === 'fulfilled' ? results[1].value : [];
+        adminData.transactions = results[2].status === 'fulfilled' ? results[2].value : [];
+        adminData.settings = results[3].status === 'fulfilled' ? results[3].value : {};
+        
+        console.log('✅ Data loaded:', {
+            categories: adminData.categories.length,
+            packages: adminData.packages.length,
+            transactions: adminData.transactions.length
+        });
+        
+        // Render all sections
+        renderDashboard();
+        renderCategories();
+        renderPackages();
+        renderTransactions();
+        renderSettings();
+        
+        showToast('Data berhasil dimuat dari Google Sheets!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error loading data:', error);
+        showToast('Error loading data: ' + error.message, 'error');
+        
+        // Load demo data as fallback
+        loadDemoData();
+    } finally {
+        showLoading(false);
+    }
+}
+
+function loadDemoData() {
+    console.log('📋 Loading demo data as fallback...');
     
     adminData = {
         categories: [
             { id: 1, name: 'Official XL / AXIS', slug: 'official-xl-axis', description: 'Paket resmi XL dan AXIS', icon: 'fas fa-star', status: 'active' },
-            { id: 2, name: 'XL Circle', slug: 'xl-circle', description: 'Paket premium XL Circle', icon: 'fas fa-users', status: 'active' },
-            { id: 3, name: 'Paket Harian', slug: 'paket-harian', description: 'Paket internet harian', icon: 'fas fa-calendar-day', status: 'active' },
-            { id: 4, name: 'Perpanjangan Masa Aktif', slug: 'perpanjangan-masa-aktif', description: 'Perpanjangan masa aktif kartu', icon: 'fas fa-clock', status: 'active' }
+            { id: 2, name: 'XL Circle', slug: 'xl-circle', description: 'Paket premium XL Circle', icon: 'fas fa-users', status: 'active' }
         ],
         packages: [
-            { id: 1, category_id: 1, name: 'XL Combo 10GB', quota: '10GB', price: 50000, validity: '30 hari', description: 'Paket internet 10GB dengan bonus telpon dan SMS unlimited', is_popular: true, status: 'active' },
-            { id: 2, category_id: 1, name: 'AXIS Bronet 5GB', quota: '5GB', price: 25000, validity: '30 hari', description: 'Paket internet 5GB untuk browsing dan media sosial', is_popular: false, status: 'active' },
-            { id: 3, category_id: 2, name: 'XL Circle 15GB', quota: '15GB', price: 75000, validity: '30 hari', description: 'Paket premium XL Circle dengan kuota besar', is_popular: true, status: 'active' }
+            { id: 1, category_id: 1, name: 'XL Combo 10GB', quota: '10GB', price: 50000, validity: '30 hari', description: 'Paket internet 10GB', is_popular: true, status: 'active' }
         ],
         transactions: [
-            { id: 'TXN_001', package_id: 1, phone_number: '081234567890', amount: 50000, payment_method: 'qris', status: 'pending', created_at: new Date().toISOString() },
-            { id: 'TXN_002', package_id: 2, phone_number: '081987654321', amount: 25000, payment_method: 'dana', status: 'completed', created_at: new Date(Date.now() - 86400000).toISOString() }
+            { id: 'TXN_001', package_id: 1, phone_number: '081234567890', amount: 50000, payment_method: 'qris', status: 'pending', created_at: new Date().toISOString() }
         ],
         settings: {
             app_name: 'MyQuota',
             maintenance_mode: false,
             admin_whatsapp: '6281234567890',
-            qris_image_url: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+DEMO',
-            dana_link: 'https://link.dana.id/qr/demo'
+            qris_image_url: '',
+            dana_link: ''
         }
     };
     
-    console.log('✅ Demo data loaded:', {
-        categories: adminData.categories.length,
-        packages: adminData.packages.length,
-        transactions: adminData.transactions.length
-    });
-    
-    // Render all sections
     renderDashboard();
     renderCategories();
     renderPackages();
@@ -174,7 +195,7 @@ function renderDashboard() {
     
     if (totalRevenue) totalRevenue.textContent = `Rp ${revenue.toLocaleString('id-ID')}`;
     
-    // Render recent activities
+    // Render recent activities and popular packages
     renderRecentActivities();
     renderPopularPackages();
 }
@@ -308,7 +329,7 @@ function editCategory(id) {
     if (modal) modal.classList.add('active');
 }
 
-function saveCategory(event) {
+async function saveCategory(event) {
     event.preventDefault();
     
     const categoryData = {
@@ -319,37 +340,92 @@ function saveCategory(event) {
         status: document.getElementById('categoryStatus').value
     };
     
-    console.log('💾 Saving category:', categoryData);
+    console.log('💾 Saving category to Google Sheets:', categoryData);
     
-    if (currentEditingId) {
-        // Update existing category
-        const index = adminData.categories.findIndex(c => c.id == currentEditingId);
-        if (index !== -1) {
-            adminData.categories[index] = { ...adminData.categories[index], ...categoryData };
-            showToast('Kategori berhasil diperbarui!', 'success');
+    try {
+        showLoading(true);
+        
+        if (currentEditingId) {
+            // Update existing category
+            const index = adminData.categories.findIndex(c => c.id == currentEditingId);
+            if (index !== -1) {
+                adminData.categories[index] = { ...adminData.categories[index], ...categoryData };
+                
+                // Update in Google Sheets
+                const updatedData = adminData.categories.map(cat => [
+                    cat.id, cat.name, cat.slug, cat.description, cat.icon, cat.status
+                ]);
+                updatedData.unshift(['ID', 'Name', 'Slug', 'Description', 'Icon', 'Status']); // Add header
+                
+                await SheetsAPI.writeData('Categories!A:F', updatedData);
+                
+                // Clear cache
+                CacheManager.remove('categories');
+                
+                showToast('Kategori berhasil diperbarui!', 'success');
+            }
+        } else {
+            // Add new category
+            const newId = Math.max(...adminData.categories.map(c => c.id), 0) + 1;
+            const newCategory = { id: newId, ...categoryData };
+            
+            // Add to local data
+            adminData.categories.push(newCategory);
+            
+            // Add to Google Sheets
+            await SheetsAPI.appendData('Categories', [
+                newId, categoryData.name, categoryData.slug, 
+                categoryData.description, categoryData.icon, categoryData.status
+            ]);
+            
+            // Clear cache
+            CacheManager.remove('categories');
+            
+            showToast('Kategori berhasil ditambahkan!', 'success');
         }
-    } else {
-        // Add new category
-        const newCategory = { 
-            id: Date.now(), 
-            ...categoryData 
-        };
-        adminData.categories.push(newCategory);
-        showToast('Kategori berhasil ditambahkan!', 'success');
+        
+        renderCategories();
+        renderDashboard();
+        closeModal('addCategoryModal');
+        
+    } catch (error) {
+        console.error('❌ Error saving category:', error);
+        showToast('Gagal menyimpan kategori: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
     }
-    
-    renderCategories();
-    renderDashboard();
-    closeModal('addCategoryModal');
 }
 
-function deleteCategory(id) {
+async function deleteCategory(id) {
     if (!confirm('Apakah Anda yakin ingin menghapus kategori ini?')) return;
     
-    adminData.categories = adminData.categories.filter(c => c.id != id);
-    renderCategories();
-    renderDashboard();
-    showToast('Kategori berhasil dihapus!', 'success');
+    try {
+        showLoading(true);
+        
+        // Remove from local data
+        adminData.categories = adminData.categories.filter(c => c.id != id);
+        
+        // Update Google Sheets with remaining data
+        const updatedData = adminData.categories.map(cat => [
+            cat.id, cat.name, cat.slug, cat.description, cat.icon, cat.status
+        ]);
+        updatedData.unshift(['ID', 'Name', 'Slug', 'Description', 'Icon', 'Status']); // Add header
+        
+        await SheetsAPI.writeData('Categories!A:F', updatedData);
+        
+        // Clear cache
+        CacheManager.remove('categories');
+        
+        renderCategories();
+        renderDashboard();
+        showToast('Kategori berhasil dihapus!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error deleting category:', error);
+        showToast('Gagal menghapus kategori: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
 // =================== PACKAGES MANAGEMENT ===================
@@ -448,7 +524,7 @@ function editPackage(id) {
     if (modal) modal.classList.add('active');
 }
 
-function savePackage(event) {
+async function savePackage(event) {
     event.preventDefault();
     
     const packageData = {
@@ -462,37 +538,95 @@ function savePackage(event) {
         status: document.getElementById('packageStatus').value
     };
     
-    console.log('💾 Saving package:', packageData);
+    console.log('💾 Saving package to Google Sheets:', packageData);
     
-    if (currentEditingId) {
-        // Update existing package
-        const index = adminData.packages.findIndex(p => p.id == currentEditingId);
-        if (index !== -1) {
-            adminData.packages[index] = { ...adminData.packages[index], ...packageData };
-            showToast('Paket berhasil diperbarui!', 'success');
+    try {
+        showLoading(true);
+        
+        if (currentEditingId) {
+            // Update existing package
+            const index = adminData.packages.findIndex(p => p.id == currentEditingId);
+            if (index !== -1) {
+                adminData.packages[index] = { ...adminData.packages[index], ...packageData };
+                
+                // Update in Google Sheets
+                const updatedData = adminData.packages.map(pkg => [
+                    pkg.id, pkg.category_id, pkg.name, pkg.quota, pkg.price, 
+                    pkg.validity, pkg.description, pkg.is_popular, pkg.status
+                ]);
+                updatedData.unshift(['ID', 'CategoryID', 'Name', 'Quota', 'Price', 'Validity', 'Description', 'IsPopular', 'Status']);
+                
+                await SheetsAPI.writeData('Packages!A:I', updatedData);
+                
+                // Clear cache
+                CacheManager.remove('packages');
+                
+                showToast('Paket berhasil diperbarui!', 'success');
+            }
+        } else {
+            // Add new package
+            const newId = Math.max(...adminData.packages.map(p => p.id), 0) + 1;
+            const newPackage = { id: newId, ...packageData };
+            
+            // Add to local data
+            adminData.packages.push(newPackage);
+            
+            // Add to Google Sheets
+            await SheetsAPI.appendData('Packages', [
+                newId, packageData.category_id, packageData.name, packageData.quota,
+                packageData.price, packageData.validity, packageData.description,
+                packageData.is_popular, packageData.status
+            ]);
+            
+            // Clear cache
+            CacheManager.remove('packages');
+            
+            showToast('Paket berhasil ditambahkan!', 'success');
         }
-    } else {
-        // Add new package
-        const newPackage = { 
-            id: Date.now(), 
-            ...packageData 
-        };
-        adminData.packages.push(newPackage);
-        showToast('Paket berhasil ditambahkan!', 'success');
+        
+        renderPackages();
+        renderDashboard();
+        closeModal('addPackageModal');
+        
+    } catch (error) {
+        console.error('❌ Error saving package:', error);
+        showToast('Gagal menyimpan paket: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
     }
-    
-    renderPackages();
-    renderDashboard();
-    closeModal('addPackageModal');
 }
 
-function deletePackage(id) {
+async function deletePackage(id) {
     if (!confirm('Apakah Anda yakin ingin menghapus paket ini?')) return;
     
-    adminData.packages = adminData.packages.filter(p => p.id != id);
-    renderPackages();
-    renderDashboard();
-    showToast('Paket berhasil dihapus!', 'success');
+    try {
+        showLoading(true);
+        
+        // Remove from local data
+        adminData.packages = adminData.packages.filter(p => p.id != id);
+        
+        // Update Google Sheets with remaining data
+        const updatedData = adminData.packages.map(pkg => [
+            pkg.id, pkg.category_id, pkg.name, pkg.quota, pkg.price, 
+            pkg.validity, pkg.description, pkg.is_popular, pkg.status
+        ]);
+        updatedData.unshift(['ID', 'CategoryID', 'Name', 'Quota', 'Price', 'Validity', 'Description', 'IsPopular', 'Status']);
+        
+        await SheetsAPI.writeData('Packages!A:I', updatedData);
+        
+        // Clear cache
+        CacheManager.remove('packages');
+        
+        renderPackages();
+        renderDashboard();
+        showToast('Paket berhasil dihapus!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error deleting package:', error);
+        showToast('Gagal menghapus paket: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
 // =================== TRANSACTIONS MANAGEMENT ===================
@@ -532,13 +666,38 @@ function renderTransactions() {
     }).join('');
 }
 
-function updateTransactionStatus(id, newStatus) {
-    const transaction = adminData.transactions.find(t => t.id === id);
-    if (transaction) {
-        transaction.status = newStatus;
-        renderTransactions();
-        renderDashboard();
-        showToast('Status transaksi berhasil diperbarui!', 'success');
+async function updateTransactionStatus(id, newStatus) {
+    try {
+        showLoading(true);
+        
+        // Update local data
+        const transaction = adminData.transactions.find(t => t.id === id);
+        if (transaction) {
+            transaction.status = newStatus;
+            
+            // Update in Google Sheets
+            const updatedData = adminData.transactions.map(txn => [
+                txn.id, txn.package_id, txn.phone_number, txn.amount,
+                txn.payment_method, txn.status, txn.created_at
+            ]);
+            updatedData.unshift(['ID', 'PackageID', 'PhoneNumber', 'Amount', 'PaymentMethod', 'Status', 'CreatedAt']);
+            
+            await SheetsAPI.writeData('Transactions!A:G', updatedData);
+            
+            // Clear cache
+            CacheManager.remove('transactions');
+            
+            renderTransactions();
+            renderDashboard();
+            showToast('Status transaksi berhasil diperbarui!', 'success');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error updating transaction status:', error);
+        showToast('Gagal memperbarui status transaksi: ' + error.message, 'error');
+        renderTransactions(); // Revert UI
+    } finally {
+        showLoading(false);
     }
 }
 
@@ -567,7 +726,7 @@ function renderSettings() {
     if (danaPhoneInput) danaPhoneInput.value = settings.dana_phone || '';
 }
 
-function saveSettings() {
+async function saveSettings() {
     const settingsData = {
         app_name: document.getElementById('appName').value,
         maintenance_mode: document.getElementById('maintenanceMode').checked,
@@ -577,8 +736,26 @@ function saveSettings() {
         dana_phone: document.getElementById('danaPhone').value
     };
     
-    adminData.settings = { ...adminData.settings, ...settingsData };
-    showToast('Pengaturan berhasil disimpan!', 'success');
+    try {
+        showLoading(true);
+        
+        // Update local data
+        adminData.settings = { ...adminData.settings, ...settingsData };
+        
+        // Update in Google Sheets
+        const settingsArray = Object.entries(settingsData).map(([key, value]) => [key, value]);
+        settingsArray.unshift(['Key', 'Value']); // Add header
+        
+        await SheetsAPI.writeData('Settings!A:B', settingsArray);
+        
+        showToast('Pengaturan berhasil disimpan!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error saving settings:', error);
+        showToast('Gagal menyimpan pengaturan: ' + error.message, 'error');
+    } finally {
+        showLoading(false);
+    }
 }
 
 function resetSettings() {
@@ -663,9 +840,14 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-function refreshData() {
-    showToast('Memperbarui data...', 'info');
-    loadDemoAdminData();
+async function refreshData() {
+    showToast('Memperbarui data dari Google Sheets...', 'info');
+    
+    // Clear all cache
+    CacheManager.clear();
+    
+    // Reload data
+    await loadAllData();
 }
 
 // =================== GLOBAL EXPORTS ===================
@@ -699,4 +881,4 @@ window.resetSettings = resetSettings;
 // Modal functions
 window.closeModal = closeModal;
 
-console.log('✅ Admin panel script loaded successfully');
+console.log('✅ Admin panel script loaded successfully with Google Sheets integration');
