@@ -1,11 +1,12 @@
-// Configuration
 const CONFIG = {
-    SPREADSHEET_ID: '17nzzFZwcFDUu-ywZGrp-d7_jIuohPv4N1dB_qpCls6Y', // Ganti dengan ID spreadsheet Anda
-    API_KEY: 'AIzaSyBiRSNnRLRYO5sUIaQdqAYLreSM2nQoG1E', // Ganti dengan API key Google Sheets Anda
-    DANA_API_URL: 'https://link.dana.id/qr/YOUR_DANA_ID', // Ganti dengan URL DANA Anda
-    DANA_PHONE: '081234567890', // Ganti dengan nomor DANA admin
-    QRIS_IMAGE_URL: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+CODE' // Ganti dengan URL gambar QRIS
+    SPREADSHEET_ID: '17nzzFZwcFDUu-ywZGrp-d7_jIuohPv4N1dB_qpCls6Y',
+    API_KEY: 'AIzaSyBiRSNnRLRYO5sUIaQdqAYLreSM2nQoG1E',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec', // Tambahkan ini
+    DANA_API_URL: 'https://link.dana.id/qr/YOUR_DANA_ID',
+    DANA_PHONE: '081234567890',
+    QRIS_IMAGE_URL: 'https://via.placeholder.com/200x200/000000/FFFFFF?text=QRIS+CODE'
 };
+
 
 // MyQuota WebStore - Frontend JavaScript with Apps Script Integration
 
@@ -19,6 +20,22 @@ let currentSort = 'price';
 let sortOrder = 'asc';
 let searchQuery = '';
 
+
+const API = {
+    async getCategories() {
+        const res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=categories`);
+        if (!res.ok) throw new Error('Gagal mengambil data kategori');
+        return await res.json();
+    },
+    async getPackages() {
+        const res = await fetch(`${CONFIG.APPS_SCRIPT_URL}?action=packages`);
+        if (!res.ok) throw new Error('Gagal mengambil data paket');
+        return await res.json();
+    }
+};
+
+
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
@@ -28,20 +45,17 @@ document.addEventListener('DOMContentLoaded', function() {
 async function initializeApp() {
     try {
         showLoading(true);
-        
-        // Check if API is configured
-        if (CONFIG.APPS_SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec')) {
+
+        if (!CONFIG.APPS_SCRIPT_URL || CONFIG.APPS_SCRIPT_URL.includes('YOUR_WEB_APP_URL')) {
             showToast('Backend belum dikonfigurasi. Menggunakan data demo.', 'warning');
             await loadDemoData();
         } else {
-            // Load real data from Apps Script
             await loadDataFromAPI();
         }
-        
+
         setupEventListeners();
         renderCategories();
         renderPackages();
-        showLoading(false);
         
     } catch (error) {
         console.error('Error initializing app:', error);
@@ -50,6 +64,7 @@ async function initializeApp() {
         setupEventListeners();
         renderCategories();
         renderPackages();
+    } finally {
         showLoading(false);
     }
 }
@@ -61,17 +76,19 @@ async function loadDataFromAPI() {
             API.getCategories(),
             API.getPackages()
         ]);
-        
+
         categories = categoriesResult.data || [];
         packages = packagesResult.data || [];
-        
+
         console.log('Data loaded from API:', { categories: categories.length, packages: packages.length });
-        
+
     } catch (error) {
         console.error('Error loading data from API:', error);
         throw error;
     }
 }
+
+
 
 // Load demo data (fallback)
 async function loadDemoData() {
