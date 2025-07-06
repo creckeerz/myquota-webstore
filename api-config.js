@@ -74,7 +74,7 @@ class AppsScriptAPI {
 const CONFIG = {
     // Google Apps Script Web App URL (akan didapat setelah deploy)
     // Format: https://script.google.com/macros/s/{SCRIPT_ID}/exec
-    APPS_SCRIPT_URL: 'YOUR_APPS_SCRIPT_WEB_APP_URL_HERE',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec',
     
     // Timeout untuk API calls
     API_TIMEOUT: 10000,
