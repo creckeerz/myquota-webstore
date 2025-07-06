@@ -2,7 +2,7 @@
 const CONFIG = {
     // Google Apps Script Web App URL (akan didapat setelah deploy)
     // Format: https://script.google.com/macros/s/{SCRIPT_ID}/exec
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwC7R0JGrhGZO2rLpYM9HNFU-kollHgJmTBQGmBTIGY04bbb_nSxs0Ekca519mQF3qo5g/exec',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx8S_ZfWfrFzKd8LnSOJ7DK4B-DMsF-ZuK71Ab_Ohdc1xnNBezVSSs6N_iU4HNCuUwWug/exec',
     
     // Timeout untuk API calls
     API_TIMEOUT: 10000,
@@ -74,7 +74,7 @@ class AppsScriptAPI {
 const CONFIG = {
     // Google Apps Script Web App URL (akan didapat setelah deploy)
     // Format: https://script.google.com/macros/s/{SCRIPT_ID}/exec
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwC7R0JGrhGZO2rLpYM9HNFU-kollHgJmTBQGmBTIGY04bbb_nSxs0Ekca519mQF3qo5g/exec',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx8S_ZfWfrFzKd8LnSOJ7DK4B-DMsF-ZuK71Ab_Ohdc1xnNBezVSSs6N_iU4HNCuUwWug/exec',
     
     // Timeout untuk API calls
     API_TIMEOUT: 10000,
@@ -363,7 +363,7 @@ const APIUtils = {
 };
 
 // Auto-detect if Apps Script URL is configured
-if (CONFIG.APPS_SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbwC7R0JGrhGZO2rLpYM9HNFU-kollHgJmTBQGmBTIGY04bbb_nSxs0Ekca519mQF3qo5g/exec')) {
+if (CONFIG.APPS_SCRIPT_URL.includes('https://script.google.com/macros/s/AKfycbx8S_ZfWfrFzKd8LnSOJ7DK4B-DMsF-ZuK71Ab_Ohdc1xnNBezVSSs6N_iU4HNCuUwWug/exec')) {
     console.warn('⚠️ Apps Script URL belum dikonfigurasi! Silakan update CONFIG.APPS_SCRIPT_URL');
     
     if (typeof showToast === 'function') {
