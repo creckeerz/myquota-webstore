@@ -17,7 +17,7 @@ console.log('🔧 API Configuration:', {
 class MyQuotaAPI {
 // KONFIGURASI API - FIXED
 const API_CONFIG = {
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZrXoIqE27I-893nCt5FrxfWHmCy6M7B56vPT-hgp_HShUhLPMZFDDP1HSlkvcoSg7Kg/exec',
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3
 };
