@@ -15,20 +15,33 @@ console.log('🔧 API Configuration:', {
 
 // =================== API CLIENT CLASS ===================
 class MyQuotaAPI {
-// =================== KONFIGURASI API - UPDATED ===================
-// URL sudah di-update dengan URL Google Apps Script Anda
+// KONFIGURASI API - FIXED
 const API_CONFIG = {
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZrXoIqE27I-893nCt5FrxfWHmCy6M7B56vPT-hgp_HShUhLPMZFDDP1HSlkvcoSg7Kg/exec',
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec',
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3
 };
 
-// Test koneksi
-console.log('🔧 API Configuration:', {
-    url: API_CONFIG.APPS_SCRIPT_URL,
-    configured: true,
-    timestamp: new Date()
-});
+// Force reload untuk testing
+console.log('🔧 API URL:', API_CONFIG.APPS_SCRIPT_URL);
+
+// Test koneksi otomatis
+setTimeout(() => {
+    fetch(API_CONFIG.APPS_SCRIPT_URL + '?action=healthCheck')
+        .then(response => response.json())
+        .then(data => {
+            console.log('✅ API Test Result:', data);
+            if (data.success) {
+                showToast('🟢 Backend terhubung!', 'success');
+            } else {
+                showToast('❌ Backend error: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('❌ Connection failed:', error);
+            showToast('🔴 Gagal terhubung ke backend', 'error');
+        });
+}, 2000);
 
 // =================== API CLIENT CLASS ===================
 class MyQuotaAPI {
