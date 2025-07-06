@@ -1,24 +1,43 @@
-// =================== KONFIGURASI API ===================
-// GANTI URL INI dengan Web App URL dari Google Apps Script Anda
+// =================== KONFIGURASI API - UPDATED ===================
+// URL sudah di-update dengan URL Google Apps Script Anda
 const API_CONFIG = {
-    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec', // WAJIB DIGANTI!
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZrXoIqE27I-893nCt5FrxfWHmCy6M7B56vPT-hgp_HShUhLPMZFDDP1HSlkvcoSg7Kg/exec',
     TIMEOUT: 10000,
     RETRY_ATTEMPTS: 3
 };
+
+// Test koneksi
+console.log('🔧 API Configuration:', {
+    url: API_CONFIG.APPS_SCRIPT_URL,
+    configured: true,
+    timestamp: new Date()
+});
+
+// =================== API CLIENT CLASS ===================
+class MyQuotaAPI {
+// =================== KONFIGURASI API - UPDATED ===================
+// URL sudah di-update dengan URL Google Apps Script Anda
+const API_CONFIG = {
+    APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyZrXoIqE27I-893nCt5FrxfWHmCy6M7B56vPT-hgp_HShUhLPMZFDDP1HSlkvcoSg7Kg/exec',
+    TIMEOUT: 10000,
+    RETRY_ATTEMPTS: 3
+};
+
+// Test koneksi
+console.log('🔧 API Configuration:', {
+    url: API_CONFIG.APPS_SCRIPT_URL,
+    configured: true,
+    timestamp: new Date()
+});
 
 // =================== API CLIENT CLASS ===================
 class MyQuotaAPI {
     constructor(baseUrl) {
         this.baseUrl = baseUrl;
-        this.isConfigured = !baseUrl.includes('https://script.google.com/macros/s/AKfycbx_6e_bO5NXW6efuBDF-qeV1bP3lqwj2cz0sk0EI8R3IOEH-ys1lrTfYUxu78pp0FQmOQ/exec');
+        this.isConfigured = true; // Always true now since URL is configured
     }
     
     async callAPI(action, data = null, id = null) {
-        if (!this.isConfigured) {
-            console.warn('⚠️ API belum dikonfigurasi! Menggunakan data demo.');
-            throw new Error('API_NOT_CONFIGURED');
-        }
-        
         try {
             const url = new URL(this.baseUrl);
             url.searchParams.append('action', action);
@@ -34,7 +53,7 @@ class MyQuotaAPI {
             console.log('🔄 API Call:', action, data ? 'with data' : 'no data');
             
             const response = await fetch(url.toString(), {
-                method: 'GET', // Apps Script menggunakan GET
+                method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
                 }
@@ -50,7 +69,7 @@ class MyQuotaAPI {
                 throw new Error(result.error || 'API call failed');
             }
             
-            console.log('✅ API Success:', action, result.data ? `${result.data.length} items` : 'success');
+            console.log('✅ API Success:', action, result.data ? `${result.data.length || 'data'} received` : 'success');
             return result;
             
         } catch (error) {
@@ -110,37 +129,24 @@ async function initializeApp() {
     try {
         showLoading(true);
         
-        // Check if API is configured
-        if (!API.isConfigured) {
-            showToast('⚠️ Backend belum dikonfigurasi. Menggunakan data demo.', 'warning');
-            await loadDemoData();
-        } else {
-            // Try to load real data from Apps Script
-            try {
-                await loadDataFromAPI();
-                showToast('✅ Data berhasil dimuat dari server!', 'success');
-            } catch (error) {
-                console.error('Failed to load from API, using demo data:', error);
-                showToast('⚠️ Gagal terhubung ke server. Menggunakan data demo.', 'warning');
-                await loadDemoData();
-            }
-        }
+        // Load real data from Apps Script
+        await loadDataFromAPI();
+        showToast('✅ Data berhasil dimuat dari server!', 'success');
         
         setupEventListeners();
         renderCategories();
         renderPackages();
         showLoading(false);
         
-        // Start auto refresh if API is configured
-        if (API.isConfigured) {
-            startAutoRefresh();
-        }
+        // Start auto refresh
+        startAutoRefresh();
         
         console.log('✅ App initialized successfully');
         
     } catch (error) {
-        console.error('❌ Error initializing app:', error);
-        showToast('❌ Gagal memuat aplikasi', 'error');
+        console.error('❌ Error loading from API, using demo data:', error);
+        showToast('⚠️ Gagal terhubung ke server. Menggunakan data demo.', 'warning');
+        
         await loadDemoData();
         setupEventListeners();
         renderCategories();
@@ -572,28 +578,10 @@ async function processPurchase() {
             payment_method: selectedPayment
         };
         
-        let transactionResult = null;
-        
-        // Try to save to backend if configured
-        if (API.isConfigured) {
-            try {
-                transactionResult = await API.addTransaction(transactionData);
-                console.log('✅ Transaction saved to backend:', transactionResult);
-                showToast('✅ Transaksi berhasil disimpan ke database!', 'success');
-            } catch (error) {
-                console.error('❌ Failed to save transaction to backend:', error);
-                showToast('⚠️ Transaksi dibuat tapi gagal disimpan ke database', 'warning');
-            }
-        } else {
-            console.log('📋 Transaction created locally (demo mode)');
-            transactionResult = {
-                success: true,
-                data: {
-                    transaction_id: 'DEMO' + Date.now(),
-                    ...transactionData
-                }
-            };
-        }
+        // Save to backend
+        const transactionResult = await API.addTransaction(transactionData);
+        console.log('✅ Transaction saved to backend:', transactionResult);
+        showToast('✅ Transaksi berhasil disimpan ke database!', 'success');
         
         // Handle payment method
         if (selectedPayment === 'qris') {
@@ -624,7 +612,7 @@ async function processPurchase() {
         
     } catch (error) {
         console.error('❌ Error processing purchase:', error);
-        showToast('❌ Gagal memproses transaksi', 'error');
+        showToast('❌ Gagal memproses transaksi: ' + error.message, 'error');
         
         // Reset button
         const buyButton = document.querySelector('#purchaseModal .btn-primary');
@@ -665,38 +653,28 @@ Silakan cek panel admin untuk approve transaksi.
     }
 }
 
-// Auto refresh data every 30 seconds if API is configured
+// Auto refresh data every 30 seconds
 function startAutoRefresh() {
-    if (API.isConfigured) {
-        setInterval(async () => {
-            try {
-                await loadDataFromAPI();
-                renderCategories();
-                renderPackages();
-                console.log('🔄 Auto refresh completed');
-            } catch (error) {
-                console.error('❌ Auto refresh failed:', error);
-            }
-        }, 30000); // 30 seconds
-    }
+    setInterval(async () => {
+        try {
+            await loadDataFromAPI();
+            renderCategories();
+            renderPackages();
+            console.log('🔄 Auto refresh completed');
+        } catch (error) {
+            console.error('❌ Auto refresh failed:', error);
+        }
+    }, 30000); // 30 seconds
 }
 
 // Manual refresh function
 async function refreshData() {
     try {
         showLoading(true);
-        
-        if (API.isConfigured) {
-            await loadDataFromAPI();
-            showToast('✅ Data berhasil diperbarui dari server!', 'success');
-        } else {
-            await loadDemoData();
-            showToast('📋 Data demo dimuat ulang', 'info');
-        }
-        
+        await loadDataFromAPI();
         renderCategories();
         renderPackages();
-        
+        showToast('✅ Data berhasil diperbarui dari server!', 'success');
     } catch (error) {
         console.error('❌ Error refreshing data:', error);
         showToast('❌ Gagal memperbarui data', 'error');
@@ -789,7 +767,7 @@ function addConnectionStatusIndicator() {
         position: fixed;
         bottom: 80px;
         right: 20px;
-        background: ${API.isConfigured ? '#28a745' : '#ffc107'};
+        background: #28a745;
         color: white;
         padding: 8px 12px;
         border-radius: 20px;
@@ -798,15 +776,11 @@ function addConnectionStatusIndicator() {
         box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         cursor: pointer;
     `;
-    indicator.textContent = API.isConfigured ? '🟢 Server' : '📋 Demo';
+    indicator.textContent = '🟢 Server';
     indicator.onclick = () => {
-        if (API.isConfigured) {
-            API.healthCheck()
-                .then(() => showToast('🟢 Terhubung ke server', 'success'))
-                .catch(() => showToast('🔴 Gagal terhubung ke server', 'error'));
-        } else {
-            showToast('📋 Mode demo - update APPS_SCRIPT_URL untuk koneksi real', 'info');
-        }
+        API.healthCheck()
+            .then(() => showToast('🟢 Terhubung ke server', 'success'))
+            .catch(() => showToast('🔴 Gagal terhubung ke server', 'error'));
     };
     document.body.appendChild(indicator);
 }
@@ -865,96 +839,6 @@ document.addEventListener('DOMContentLoaded', function() {
         addRefreshButton();
     }, 1000);
 });
-
-// Add CSS for detail modal styles if not exists
-if (!document.querySelector('#detail-modal-styles')) {
-    const detailStyles = document.createElement('style');
-    detailStyles.id = 'detail-modal-styles';
-    detailStyles.textContent = `
-        .package-detail h3 {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 15px;
-            color: #333;
-        }
-        
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-            padding: 8px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        
-        .detail-row .label {
-            font-weight: 600;
-            color: #666;
-        }
-        
-        .detail-row .value {
-            color: #333;
-        }
-        
-        .detail-row .value.price {
-            color: #ec008c;
-            font-weight: 700;
-            font-size: 16px;
-        }
-        
-        .detail-description {
-            margin-top: 15px;
-        }
-        
-        .detail-description h4 {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 8px;
-            color: #333;
-        }
-        
-        .detail-description p {
-            font-size: 13px;
-            line-height: 1.5;
-            color: #666;
-        }
-        
-        .popular-badge {
-            background: linear-gradient(135deg, #ff6b6b, #ff8e8e);
-            color: white;
-            padding: 5px 10px;
-            border-radius: 15px;
-            font-size: 12px;
-            font-weight: 600;
-            display: inline-block;
-            margin-top: 10px;
-        }
-        
-        .empty-state {
-            text-align: center;
-            padding: 60px 20px;
-            color: #666;
-        }
-        
-        .empty-state i {
-            font-size: 48px;
-            margin-bottom: 20px;
-            color: #ddd;
-        }
-        
-        .empty-state h3 {
-            font-size: 18px;
-            margin-bottom: 10px;
-            color: #333;
-        }
-        
-        .empty-state p {
-            font-size: 14px;
-            line-height: 1.5;
-        }
-    `;
-    
-    document.head.appendChild(detailStyles);
-}
 
 // Export functions for global access
 window.selectCategory = selectCategory;
