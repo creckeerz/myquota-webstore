@@ -864,3 +864,70 @@ window.toggleFilter = toggleFilter;
 window.closeModal = closeModal;
 window.closeDetailModal = closeDetailModal;
 window.refreshData = refreshData;
+
+
+// FORCE REFRESH DATA - Add this at the end of script.js
+document.addEventListener('DOMContentLoaded', function() {
+    // Add manual refresh button
+    const refreshBtn = document.createElement('button');
+    refreshBtn.innerHTML = '🔄 Refresh Data';
+    refreshBtn.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: #ec008c;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 25px;
+        cursor: pointer;
+        z-index: 1000;
+        font-weight: bold;
+    `;
+    
+    refreshBtn.onclick = async function() {
+        try {
+            showLoading(true);
+            
+            // Test API first
+            const healthCheck = await fetch(API_CONFIG.APPS_SCRIPT_URL + '?action=healthCheck');
+            const healthResult = await healthCheck.json();
+            
+            if (healthResult.success) {
+                // Load real data
+                const categoriesResponse = await fetch(API_CONFIG.APPS_SCRIPT_URL + '?action=getCategories');
+                const categoriesData = await categoriesResponse.json();
+                
+                const packagesResponse = await fetch(API_CONFIG.APPS_SCRIPT_URL + '?action=getPackages');
+                const packagesData = await packagesResponse.json();
+                
+                if (categoriesData.success && packagesData.success) {
+                    categories = categoriesData.data || [];
+                    packages = packagesData.data || [];
+                    
+                    renderCategories();
+                    renderPackages();
+                    
+                    showToast(`✅ Data loaded: ${categories.length} categories, ${packages.length} packages`, 'success');
+                } else {
+                    throw new Error('Failed to load data');
+                }
+            } else {
+                throw new Error(healthResult.error);
+            }
+            
+        } catch (error) {
+            console.error('Refresh failed:', error);
+            showToast('❌ Refresh failed: ' + error.message, 'error');
+        } finally {
+            showLoading(false);
+        }
+    };
+    
+    document.body.appendChild(refreshBtn);
+    
+    // Auto-trigger refresh after 3 seconds
+    setTimeout(() => {
+        refreshBtn.click();
+    }, 3000);
+});
